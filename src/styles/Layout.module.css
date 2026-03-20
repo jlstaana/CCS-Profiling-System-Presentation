@@ -1,0 +1,107 @@
+/* Define CSS variables */
+:root {
+  --light-bg: #f8f9fc;
+  --sidebar-width: 280px;
+  --sidebar-mini: 80px;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+}
+
+.container {
+  display: flex;
+  min-height: 100vh;
+  background-color: var(--light-bg);
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 100vh;
+}
+
+/* Sidebar adjacent styling - using class-based approach instead of sibling selectors */
+.mainContent.withSidebar {
+  margin-left: var(--sidebar-width);
+}
+
+.mainContent.withSidebarCollapsed {
+  margin-left: var(--sidebar-mini);
+}
+
+/* Mobile styles - no margin on mobile */
+@media (max-width: 768px) {
+  .mainContent.withSidebar,
+  .mainContent.withSidebarCollapsed {
+    margin-left: 0;
+  }
+}
+
+.content {
+  flex: 1;
+  padding: clamp(0.75rem, 4vw, 1.5rem);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  transition: padding 0.3s ease;
+}
+
+/* Mobile overlay */
+.mobileOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+  display: none;
+}
+
+.mobileOverlay.visible {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Container queries are not widely supported yet, use media queries instead */
+@media (min-width: 500px) {
+  .content {
+    padding-left: var(--space-md);
+    padding-right: var(--space-md);
+  }
+}
+
+/* Responsive padding */
+@media (max-width: 768px) {
+  .content {
+    padding: var(--space-sm);
+  }
+}
+
+@media (max-width: 480px) {
+  .content {
+    padding: var(--space-xs, 0.5rem);
+  }
+}
+
+/* Print styles */
+@media print {
+  .container {
+    background-color: white;
+  }
+  
+  .mainContent {
+    margin-left: 0 !important;
+  }
+}
