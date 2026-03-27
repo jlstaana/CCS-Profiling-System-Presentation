@@ -81,102 +81,110 @@ const FacultyLogin = () => {
 };
 
 const styles = {
+  /* ===== CONTAINER ===== */
   container: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f9fc',
+    background: 'linear-gradient(135deg, #240f9d, #1cc88a)',
     padding: '20px'
   },
+
+  /* ===== CARD ===== */
   card: {
-    backgroundColor: 'white',
-    borderRadius: '14px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+    background: 'rgba(255,255,255,0.95)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '18px',
+    boxShadow: '0 20px 45px rgba(0,0,0,0.15)',
     padding: '40px',
     width: '100%',
-    maxWidth: '400px',
-    borderTop: '4px solid #1cc88a'
+    maxWidth: '420px',
+    border: '1px solid rgba(255,255,255,0.25)',
+    textAlign: 'center'
   },
+
+  /* ===== HEADER ===== */
   header: {
-    textAlign: 'center',
     marginBottom: '30px'
   },
+
   logo: {
-    fontSize: '48px',
+    fontSize: '50px',
     marginBottom: '10px'
   },
+
   title: {
-    color: '#1cc88a',
-    fontSize: '24px',
-    fontWeight: '600',
-    marginBottom: '5px'
+    color: '#0f5132',
+    fontSize: '26px',
+    fontWeight: '700'
   },
+
   subtitle: {
-    color: '#858796',
-    fontSize: '14px'
+    color: '#6c757d',
+    fontSize: '13px'
   },
+
+  /* ===== FORM ===== */
   form: {
     marginBottom: '20px'
   },
+
   inputGroup: {
-    marginBottom: '20px'
+    marginBottom: '18px',
+    textAlign: 'left'
   },
+
   label: {
     display: 'block',
-    marginBottom: '8px',
-    color: '#5a5c69',
-    fontSize: '14px',
+    marginBottom: '6px',
+    color: '#495057',
+    fontSize: '13px',
     fontWeight: '500'
   },
+
   input: {
     width: '100%',
-    padding: '12px 16px',
+    padding: '12px 14px',
     border: '1px solid #d1d3e2',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontSize: '14px',
-    ':focus': {
-      outline: 'none',
-      borderColor: '#1cc88a'
-    }
+    background: '#f8f9fc',
+    transition: 'all 0.25s ease'
   },
+
+  /* ===== BUTTON ===== */
   button: {
     width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(135deg, #1cc88a 0%, #169b6b 100%)',
+    padding: '13px',
+    background: 'linear-gradient(135deg, #1cc88a, #169b6b)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
+    borderRadius: '10px',
+    fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
-    transition: 'transform 0.3s ease',
-    ':hover': {
-      transform: 'translateY(-2px)'
-    },
-    ':disabled': {
-      opacity: 0.7,
-      transform: 'none',
-      cursor: 'not-allowed'
-    }
+    boxShadow: '0 6px 18px rgba(28,200,138,0.35)',
+    transition: 'all 0.3s ease'
   },
+
+  /* ===== FOOTER ===== */
   footer: {
     display: 'flex',
     justifyContent: 'center',
     gap: '10px',
-    marginTop: '20px'
+    marginTop: '20px',
+    fontSize: '13px'
   },
+
   link: {
     color: '#1f2f70',
     textDecoration: 'none',
-    fontSize: '14px',
-    ':hover': {
-      textDecoration: 'underline',
-      color: '#1cc88a'
-    }
+    fontWeight: '500'
   },
+
   separator: {
-    color: '#d1d3e2'
+    color: '#ccc'
   }
 };
 

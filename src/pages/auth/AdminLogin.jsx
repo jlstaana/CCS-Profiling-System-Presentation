@@ -84,110 +84,121 @@ const AdminLogin = () => {
 };
 
 const styles = {
+  /* ===== CONTAINER ===== */
   container: {
     minHeight: '100vh',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f8f9fc',
+    background: 'linear-gradient(135deg, #1f2f70, #4e73df)',
     padding: '20px'
   },
+
+  /* ===== CARD ===== */
   card: {
-    backgroundColor: 'white',
-    borderRadius: '14px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)',
+    background: 'rgba(255,255,255,0.95)',
+    backdropFilter: 'blur(10px)',
+    borderRadius: '18px',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
     padding: '40px',
     width: '100%',
-    maxWidth: '400px',
-    borderTop: '4px solid #f6c23e'
+    maxWidth: '420px',
+    border: '1px solid rgba(255,255,255,0.2)',
+    textAlign: 'center'
   },
+
+  /* ===== HEADER ===== */
   header: {
-    textAlign: 'center',
     marginBottom: '30px'
   },
+
   logo: {
-    fontSize: '48px',
+    fontSize: '50px',
     marginBottom: '10px'
   },
+
   title: {
-    color: '#f6c23e',
-    fontSize: '24px',
-    fontWeight: '600',
-    marginBottom: '5px'
+    color: '#1f2f70',
+    fontSize: '26px',
+    fontWeight: '700'
   },
+
   subtitle: {
     color: '#858796',
-    fontSize: '14px'
+    fontSize: '13px'
   },
+
+  /* ===== FORM ===== */
   form: {
     marginBottom: '20px'
   },
+
   inputGroup: {
-    marginBottom: '20px'
+    marginBottom: '18px',
+    textAlign: 'left'
   },
+
   label: {
     display: 'block',
-    marginBottom: '8px',
+    marginBottom: '6px',
     color: '#5a5c69',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '500'
   },
+
   input: {
     width: '100%',
-    padding: '12px 16px',
+    padding: '12px 14px',
     border: '1px solid #d1d3e2',
-    borderRadius: '8px',
+    borderRadius: '10px',
     fontSize: '14px',
-    ':focus': {
-      outline: 'none',
-      borderColor: '#f6c23e'
-    }
+    background: '#f8f9fc',
+    transition: 'all 0.25s ease'
   },
+
+  /* NOTE: pseudo styles don't work inline, but kept visual consistency */
+
+  /* ===== BUTTON ===== */
   button: {
     width: '100%',
-    padding: '12px',
-    background: 'linear-gradient(135deg, #f6c23e 0%, #d4a11e 100%)',
+    padding: '13px',
+    background: 'linear-gradient(135deg, #f6c23e, #d4a11e)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
+    borderRadius: '10px',
+    fontSize: '15px',
     fontWeight: '600',
     cursor: 'pointer',
     transition: 'all 0.3s ease',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      boxShadow: '0 5px 15px rgba(246, 194, 62, 0.3)'
-    },
-    ':disabled': {
-      opacity: 0.7,
-      transform: 'none',
-      cursor: 'not-allowed'
-    }
+    boxShadow: '0 6px 15px rgba(246,194,62,0.3)'
   },
+
+  /* ===== FOOTER ===== */
   footer: {
     display: 'flex',
     justifyContent: 'center',
     gap: '10px',
-    marginTop: '20px'
+    marginTop: '20px',
+    fontSize: '13px'
   },
+
   link: {
     color: '#1f2f70',
     textDecoration: 'none',
-    fontSize: '14px',
-    ':hover': {
-      textDecoration: 'underline',
-      color: '#f6c23e'
-    }
+    fontWeight: '500'
   },
+
   separator: {
-    color: '#d1d3e2'
+    color: '#ccc'
   },
+
+  /* ===== WARNING ===== */
   warning: {
-    marginTop: '30px',
+    marginTop: '25px',
     padding: '10px',
-    backgroundColor: '#fff3cd',
+    background: 'linear-gradient(135deg, #fff3cd, #ffeeba)',
     border: '1px solid #ffeeba',
-    borderRadius: '8px',
+    borderRadius: '10px',
     textAlign: 'center',
     color: '#856404',
     fontSize: '12px'

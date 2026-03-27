@@ -147,135 +147,164 @@ const StudentInfo = () => {
 
 const styles = {
   pageTitle: {
-    fontSize: '24px',
-    fontWeight: '600',
+    fontSize: '28px',
+    fontWeight: '700',
     color: '#1f2f70',
-    marginBottom: '24px'
+    marginBottom: '24px',
+    letterSpacing: '-0.5px'
   },
+
+  /* ===== PROFILE HEADER ===== */
   profileHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '24px',
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    gap: '20px',
+    background: 'linear-gradient(135deg, #ffffff, #f9fbff)',
+    borderRadius: '16px',
     padding: '24px',
     marginBottom: '24px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+    boxShadow: '0 8px 25px rgba(0,0,0,0.06)',
+    border: '1px solid rgba(0,0,0,0.04)'
   },
+
   profileAvatar: {
     width: '80px',
     height: '80px',
     borderRadius: '50%',
-    backgroundColor: '#1f2f70',
+    background: 'linear-gradient(135deg, #4e73df, #224abe)',
     color: 'white',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '36px',
-    fontWeight: '600'
+    fontSize: '32px',
+    fontWeight: '700',
+    boxShadow: '0 6px 15px rgba(0,0,0,0.15)'
   },
+
   profileInfo: {
     flex: 1
   },
+
   profileName: {
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#1f2f70',
-    marginBottom: '4px'
+    fontSize: '22px',
+    fontWeight: '700',
+    color: '#1f2f70'
   },
+
   profileId: {
-    fontSize: '14px',
+    fontSize: '13px',
     color: '#858796',
-    marginBottom: '8px'
+    marginBottom: '10px'
   },
+
   statusBadge: {
     display: 'inline-block',
-    padding: '4px 12px',
-    backgroundColor: '#1cc88a',
+    padding: '5px 14px',
+    background: 'linear-gradient(135deg, #1cc88a, #17a673)',
     color: 'white',
     borderRadius: '20px',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    letterSpacing: '0.3px'
   },
+
+  /* ===== GRID ===== */
   infoGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
     gap: '20px'
   },
+
+  /* ===== CARDS ===== */
   infoCard: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    background: 'linear-gradient(145deg, #ffffff, #f9fbff)',
+    borderRadius: '14px',
     padding: '20px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+    boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+    border: '1px solid rgba(0,0,0,0.03)',
+    transition: '0.25s ease'
   },
+
   coursesCard: {
     gridColumn: 'span 2',
-    backgroundColor: 'white',
-    borderRadius: '12px',
+    background: 'linear-gradient(145deg, #ffffff, #f9fbff)',
+    borderRadius: '14px',
     padding: '20px',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
+    boxShadow: '0 6px 20px rgba(0,0,0,0.06)',
+    border: '1px solid rgba(0,0,0,0.03)'
   },
+
   cardTitle: {
-    fontSize: '18px',
+    fontSize: '17px',
     fontWeight: '600',
     color: '#1f2f70',
     marginBottom: '16px',
-    paddingBottom: '12px',
-    borderBottom: '2px solid #f8f9fc'
+    paddingBottom: '10px',
+    borderBottom: '2px solid #f1f3f9'
   },
+
+  /* ===== INFO LIST ===== */
   infoList: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px'
+    gap: '10px'
   },
+
   infoItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '8px 0',
-    borderBottom: '1px solid #f8f9fc',
-    ':last-child': {
-      borderBottom: 'none'
-    }
+    padding: '10px 0',
+    borderBottom: '1px solid #f1f3f9'
   },
+
   infoLabel: {
     color: '#858796',
-    fontSize: '14px',
+    fontSize: '13px',
     fontWeight: '500'
   },
+
   gpaValue: {
     fontSize: '18px',
     fontWeight: '700',
-    color: '#1f2f70'
+    color: '#1cc88a'
   },
+
+  /* ===== TABLE ===== */
   tableContainer: {
     overflowX: 'auto'
   },
+
   table: {
     width: '100%',
-    borderCollapse: 'collapse'
+    borderCollapse: 'separate',
+    borderSpacing: '0 8px'
   },
+
   th: {
     textAlign: 'left',
     padding: '12px',
-    backgroundColor: '#f8f9fc',
     color: '#5a5c69',
-    fontSize: '14px',
-    fontWeight: '600',
-    borderBottom: '2px solid #e3e6f0'
+    fontSize: '13px',
+    fontWeight: '600'
   },
+
   td: {
     padding: '12px',
-    borderBottom: '1px solid #e3e6f0',
-    fontSize: '14px'
+    fontSize: '13px',
+    backgroundColor: '#f9fbff'
   },
+
+  /* ===== GRADE BADGE ===== */
   gradeBadge: {
     display: 'inline-block',
-    padding: '4px 12px',
+    padding: '5px 12px',
     borderRadius: '20px',
     color: 'white',
     fontSize: '12px',
-    fontWeight: '600'
+    fontWeight: '600',
+    minWidth: '45px',
+    textAlign: 'center'
   }
 };
 
