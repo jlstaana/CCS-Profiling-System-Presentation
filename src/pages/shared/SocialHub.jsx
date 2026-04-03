@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useSocial } from '../../context/SocialContext';
 import SocialButtons from '../../components/SocialButtons';
 import CommentSection from '../../components/CommentSection';
 import ConnectionsList from '../../components/ConnectionsList';
@@ -12,46 +13,12 @@ const SocialHub = () => {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedChat, setSelectedChat] = useState('msg1');
   const [eventsState, setEventsState] = useState([]);
-  const [connections, setConnections] = useState([]);
   const [messages, setMessages] = useState([]);
-
-  // Mock data
-  const mockEvents = [
-    {
-      id: 1,
-      title: 'CS Week Hackathon',
-      date: '2024-03-15',
-      description: 'Build innovative projects!',
-      likes: 23,
-      comments: 12,
-      shares: 5,
-      liked: false
-    },
-    {
-      id: 2,
-      title: 'AI Ethics Lecture',
-      date: '2024-03-18',
-      description: 'Guest lecture by Dr. Sarah Johnson',
-      likes: 45,
-      comments: 8,
-      shares: 3,
-      liked: false
-    }
-  ];
-
-  const mockUsers = [
-    { id: 1, name: 'John Doe', role: 'student', department: 'CS', avatar: 'JD' },
-    { id: 2, name: 'Dr. Maria Santos', role: 'faculty', department: 'CS', avatar: 'MS' },
-    { id: 3, name: 'Prof. Juan Dela Cruz', role: 'faculty', department: 'IT', avatar: 'JC' }
-  ];
-
-  const mockMessages = [
-    { id: 1, contact: 'Dr. Maria Santos', preview: 'Great job on proposal...', time: '2h ago', unread: 2 },
-    { id: 2, contact: 'John Doe', preview: 'Discuss assignment?', time: '5h ago', unread: 0 }
-  ];
+  
+  const { allUsers, connections, sendConnectionRequest } = useSocial();
 
   useEffect(() => {
-    setEventsState(mockEvents);
+    setEventsState([]);
   }, []);
 
   const handleLike = (eventId, isLiked) => {
@@ -66,8 +33,10 @@ const SocialHub = () => {
   };
 
   const handleConnect = (userId) => {
-    if (!connections.includes(userId)) {
-      setConnections([...connections, userId]);
+    const person = allUsers.find(u => u.id === userId);
+    if (person) {
+      sendConnectionRequest(person);
+      alert(`Connection request sent to ${person.name}`);
     }
   };
 
@@ -262,8 +231,8 @@ const SocialHub = () => {
         {/* Connections Tab */}
         {activeTab === 'connections' && (
           <ConnectionsList 
-            users={mockUsers}
-            connections={connections}
+            users={allUsers || []}
+            connections={connections || []}
             onConnect={handleConnect}
           />
         )}
@@ -272,12 +241,12 @@ const SocialHub = () => {
         {activeTab === 'messages' && (
           <div style={styles.messagesSection}>
             <MessageList 
-              messages={mockMessages}
+              messages={[]}
               selectedChat={selectedChat}
               onSelectChat={setSelectedChat}
             />
             <MessageChat 
-              contactName={mockMessages.find(m => `msg${m.id}` === selectedChat)?.contact || 'Dr. Maria Santos'}
+              contactName={''}
               onSendMessage={handleSendMessage}
             />
           </div>

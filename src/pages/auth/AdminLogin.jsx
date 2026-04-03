@@ -9,21 +9,25 @@ const AdminLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    setTimeout(() => {
-      login({
-        id: 'admin001',
-        name: 'Dr. Michael Chen',
-        role: 'admin',
-        email: 'michael.chen@ccs.edu',
-        position: 'Department Chair'
-      });
-      navigate('/admin-dashboard');
-      setLoading(false);
-    }, 1500);
+    const res = await login(email, password);
+    
+    if (res.success) {
+      if (res.user.role === 'admin') {
+        navigate('/admin-dashboard');
+      } else {
+        setError('Unauthorized: Not an admin account.');
+      }
+    } else {
+      setError(res.error);
+    }
+    setLoading(false);
   };
 
   return (
@@ -34,6 +38,8 @@ const AdminLogin = () => {
           <h1 style={styles.title}>Admin Login</h1>
           <p style={styles.subtitle}>Department Chair Portal</p>
         </div>
+
+        {error && <div style={{color: 'red', textAlign: 'center', marginBottom: '15px'}}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>

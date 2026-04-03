@@ -19,6 +19,7 @@ const Sidebar = ({ collapsed, mobileOpen, toggleSidebar, userRole, isMobile }) =
           { path: `${basePath}/instruction`, icon: '📚', label: 'Instruction', section: 'academic' },
           { path: `${basePath}/scheduling`, icon: '📅', label: 'Scheduling', section: 'academic' },
           { path: `${basePath}/events`, icon: '🎉', label: 'Events', section: 'academic' },
+          { path: `${basePath}/violations`, icon: '⚠️', label: 'My Violations', section: 'academic' },
           
           // Social Section - Individual Pages
           { path: `${basePath}/social`, icon: '🌐', label: 'Social Feed', section: 'social' },
@@ -38,6 +39,7 @@ const Sidebar = ({ collapsed, mobileOpen, toggleSidebar, userRole, isMobile }) =
           { path: `${basePath}/instruction`, icon: '📚', label: 'Instruction', section: 'academic' },
           { path: `${basePath}/scheduling`, icon: '📅', label: 'Scheduling', section: 'academic' },
           { path: `${basePath}/events`, icon: '🎉', label: 'Events', section: 'academic' },
+          { path: `${basePath}/violations`, icon: '⚠️', label: 'Violation Records', section: 'academic' },
           
           // Social Section - Individual Pages
           { path: `${basePath}/social`, icon: '🌐', label: 'Social Feed', section: 'social' },
@@ -57,6 +59,7 @@ const Sidebar = ({ collapsed, mobileOpen, toggleSidebar, userRole, isMobile }) =
           { path: `${basePath}/instruction`, icon: '📚', label: 'Instruction', section: 'academic' },
           { path: `${basePath}/scheduling`, icon: '📅', label: 'Scheduling', section: 'academic' },
           { path: `${basePath}/events`, icon: '🎉', label: 'Events', section: 'academic' },
+          { path: `${basePath}/violations`, icon: '⚠️', label: 'Violation Records', section: 'academic' },
           
           // Social Section - Individual Pages
           { path: `${basePath}/social`, icon: '🌐', label: 'Social Feed', section: 'social' },

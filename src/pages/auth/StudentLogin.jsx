@@ -8,25 +8,29 @@ const StudentLogin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [error, setError] = useState('');
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    // Simulate API call
-    setTimeout(() => {
-      login({
-        id: studentId,
-        name: 'John Doe',
-        role: 'student',
-        email: 'john.doe@ccs.edu',
-        course: 'BS Computer Science',
-        year: '3rd Year'
-      });
-      navigate('/student-dashboard');
-      setLoading(false);
-    }, 1500);
+    // Automatically convert generic student ID to email for demo purposes
+    const email = studentId.includes('@') ? studentId : `${studentId}@ccs.edu`;
+    
+    const res = await login(email, password);
+    
+    if (res.success) {
+      if (res.user.role === 'student') {
+        navigate('/student-dashboard');
+      } else {
+        setError('Unauthorized: Not a student account.');
+      }
+    } else {
+      setError(res.error);
+    }
+    setLoading(false);
   };
 
   return (
@@ -37,6 +41,8 @@ const StudentLogin = () => {
           <h1 className={styles.title}>CCS Profiling System</h1>
           <p className={styles.subtitle}>Student Login Portal</p>
         </div>
+
+        {error && <div style={{color: 'red', textAlign: 'center', marginBottom: '15px'}}>{error}</div>}
 
         <form onSubmit={handleSubmit} className={styles.form}>
           <div className={styles.inputGroup}>

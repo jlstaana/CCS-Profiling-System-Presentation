@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
-import ConnectButton from '../../components/social/ConnectButton';
+import { useSocial } from '../../context/SocialContext';
 
 const StudyGroups = () => {
   const { user } = useAuth();
+  const { studyGroups, loading, joinStudyGroup, leaveStudyGroup, createStudyGroup } = useSocial();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     course: '',
@@ -15,117 +16,25 @@ const StudyGroups = () => {
     maxMembers: '10'
   });
 
-  const [studyGroups, setStudyGroups] = useState([
-    {
-      id: 1,
-      name: 'Database Systems Study Group',
-      course: 'CS 301',
-      members: 12,
-      maxMembers: 15,
-      description: 'Weekly study sessions for Database Systems. We meet every Wednesday at 3 PM to discuss concepts, practice SQL, and work on projects together.',
-      createdBy: 'Dr. Maria Santos',
-      createdByAvatar: 'M',
-      createdByRole: 'faculty',
-      upcomingSession: 'Tomorrow, 3:00 PM',
-      messages: 156,
-      tags: ['SQL', 'Normalization', 'ER Diagrams'],
-      memberAvatars: ['M', 'J', 'A', 'B', 'C']
-    },
-    {
-      id: 2,
-      name: 'Web Development Project Team',
-      course: 'CS 302',
-      members: 8,
-      maxMembers: 10,
-      description: 'Working on the final project together. Frontend (React) and backend (Node.js) collaboration. Looking for motivated team members!',
-      createdBy: 'Prof. Johnson',
-      createdByAvatar: 'J',
-      createdByRole: 'faculty',
-      upcomingSession: 'Friday, 2:00 PM',
-      messages: 89,
-      tags: ['React', 'Node.js', 'MongoDB'],
-      memberAvatars: ['J', 'S', 'M', 'L']
-    },
-    {
-      id: 3,
-      name: 'Algorithm Practice Group',
-      course: 'CS 303',
-      members: 15,
-      maxMembers: 20,
-      description: 'Preparing for coding interviews and exams. We solve LeetCode problems together every Monday and Thursday.',
-      createdBy: 'Dr. Williams',
-      createdByAvatar: 'W',
-      createdByRole: 'faculty',
-      upcomingSession: 'Monday, 4:00 PM',
-      messages: 234,
-      tags: ['LeetCode', 'Data Structures', 'Algorithms'],
-      memberAvatars: ['W', 'K', 'R', 'T', 'P']
-    },
-    {
-      id: 4,
-      name: 'Software Engineering Capstone',
-      course: 'CS 304',
-      members: 6,
-      maxMembers: 8,
-      description: 'Capstone project team. Building a mobile app for campus navigation.',
-      createdBy: 'Alice Johnson',
-      createdByAvatar: 'A',
-      createdByRole: 'student',
-      upcomingSession: 'Wednesday, 1:00 PM',
-      messages: 67,
-      tags: ['React Native', 'UI/UX', 'Firebase'],
-      memberAvatars: ['A', 'B', 'C', 'D']
-    }
-  ]);
-
-  const [joinedGroups, setJoinedGroups] = useState([1]); // User has joined group 1
-
-  const handleJoinGroup = (groupId) => {
-    if (!joinedGroups.includes(groupId)) {
-      setJoinedGroups([...joinedGroups, groupId]);
-      setStudyGroups(studyGroups.map(group => 
-        group.id === groupId 
-          ? { ...group, members: group.members + 1 }
-          : group
-      ));
-    }
+  const handleJoinGroup = async (groupId) => {
+    await joinStudyGroup(groupId);
   };
 
-  const handleLeaveGroup = (groupId) => {
-    setJoinedGroups(joinedGroups.filter(id => id !== groupId));
-    setStudyGroups(studyGroups.map(group => 
-      group.id === groupId 
-        ? { ...group, members: group.members - 1 }
-        : group
-    ));
+  const handleLeaveGroup = async (groupId) => {
+    await leaveStudyGroup(groupId);
   };
 
-  const handleCreateGroup = () => {
-    const newGroup = {
-      id: Date.now(),
-      ...formData,
-      members: 1,
-      messages: 0,
-      createdBy: user.name,
-      createdByAvatar: user.name.charAt(0),
-      createdByRole: user.role,
-      memberAvatars: [user.name.charAt(0)],
-      tags: formData.description.split(' ').slice(0, 3)
-    };
-    setStudyGroups([newGroup, ...studyGroups]);
-    setJoinedGroups([...joinedGroups, newGroup.id]);
+  const handleCreateGroup = async () => {
+    if (!formData.name.trim()) return;
+    setSaving(true);
+    await createStudyGroup(formData);
+    setSaving(false);
     setShowCreateModal(false);
-    setFormData({
-      name: '',
-      course: '',
-      description: '',
-      schedule: '',
-      maxMembers: '10'
-    });
+    setFormData({ name: '', course: '', description: '', schedule: '', maxMembers: '10' });
   };
 
-  const filteredGroups = filter === 'all' 
-    ? studyGroups 
+  const filteredGroups = filter === 'all'
+    ? studyGroups
     : studyGroups.filter(g => g.course === filter);
 
   const styles = {
@@ -468,7 +377,7 @@ const StudyGroups = () => {
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>Study Groups</h1>
-        <button 
+        <button
           style={styles.createButton}
           onClick={() => setShowCreateModal(true)}
         >
@@ -525,85 +434,52 @@ const StudyGroups = () => {
         </button>
       </div>
 
-      {/* Groups Grid */}
       <div style={styles.groupsGrid}>
-        {filteredGroups.map(group => {
-          const isJoined = joinedGroups.includes(group.id);
-          const isCreator = group.createdBy === user.name;
-          
+        {filteredGroups.length === 0 ? (
+          <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: 60, color: '#858796' }}>No study groups found. Create one!</div>
+        ) : filteredGroups.map(group => {
+          const isJoined = group.isMember;
+          const isCreator = group.createdBy === user?.name;
+
           return (
             <div key={group.id} style={styles.groupCard}>
               <div style={styles.groupHeader}>
                 <h3 style={styles.groupName}>{group.name}</h3>
                 <span style={styles.courseBadge}>{group.course}</span>
               </div>
-              
+
               <div style={styles.createdBy}>
-                <div style={{
-                  ...styles.creatorAvatar,
-                  ...(group.createdByRole === 'faculty' ? styles.facultyAvatar : {})
-                }}>
-                  {group.createdByAvatar}
+                <div style={styles.creatorAvatar}>
+                  {(group.createdBy || 'U').charAt(0)}
                 </div>
                 <span>Created by {group.createdBy}</span>
               </div>
 
               <p style={styles.description}>{group.description}</p>
 
-              <div style={styles.tags}>
-                {group.tags.map((tag, index) => (
-                  <span key={index} style={styles.tag}>{tag}</span>
-                ))}
-              </div>
-
               <div style={styles.groupDetails}>
                 <div style={styles.detailRow}>
                   <span style={styles.detailLabel}>👥 Members</span>
-                  <span>{group.members}/{group.maxMembers}</span>
+                  <span>{group.members}</span>
                 </div>
                 <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>📅 Next Session</span>
-                  <span>{group.upcomingSession}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>💬 Messages</span>
-                  <span>{group.messages}</span>
-                </div>
-                <div style={styles.detailRow}>
-                  <span style={styles.detailLabel}>Active Members</span>
-                  <div style={styles.membersList}>
-                    {group.memberAvatars.slice(0, 4).map((avatar, idx) => (
-                      <div key={idx} style={styles.memberAvatar}>{avatar}</div>
-                    ))}
-                    {group.members > 4 && (
-                      <span style={styles.moreMembers}>+{group.members - 4}</span>
-                    )}
-                  </div>
+                  <span style={styles.detailLabel}>📅 Schedule</span>
+                  <span>{group.schedule || 'TBD'}</span>
                 </div>
               </div>
 
               <div style={styles.groupFooter}>
                 {isCreator ? (
-                  <span style={{ color: '#1cc88a', fontSize: '13px' }}>You are the creator</span>
+                  <span style={{ color: '#1cc88a', fontSize: '13px' }}>You created this group</span>
                 ) : isJoined ? (
-                  <button 
-                    style={styles.leaveButton}
-                    onClick={() => handleLeaveGroup(group.id)}
-                  >
+                  <button style={styles.leaveButton} onClick={() => handleLeaveGroup(group.id)}>
                     Leave Group
                   </button>
                 ) : (
-                  <button 
-                    style={styles.joinButton}
-                    onClick={() => handleJoinGroup(group.id)}
-                    disabled={group.members >= group.maxMembers}
-                  >
-                    {group.members >= group.maxMembers ? 'Group Full' : 'Join Group'}
+                  <button style={styles.joinButton} onClick={() => handleJoinGroup(group.id)}>
+                    Join Group
                   </button>
                 )}
-                <Link to={`/messages?group=${group.id}`} style={styles.viewButton}>
-                  View Details
-                </Link>
               </div>
             </div>
           );
@@ -693,12 +569,12 @@ const StudyGroups = () => {
               >
                 Cancel
               </button>
-              <button 
+              <button
                 style={styles.submitButton}
                 onClick={handleCreateGroup}
-                disabled={!formData.name || !formData.course || !formData.description}
+                disabled={!formData.name || saving}
               >
-                Create Group
+                {saving ? 'Creating…' : 'Create Group'}
               </button>
             </div>
           </div>

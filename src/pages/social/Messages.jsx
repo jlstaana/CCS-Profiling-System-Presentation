@@ -1,671 +1,187 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
-import { Link } from 'react-router-dom';
-import ConnectButton from '../../components/social/ConnectButton';
+import { useSocial } from '../../context/SocialContext';
 
 const Messages = () => {
   const { user } = useAuth();
-  const [selectedChat, setSelectedChat] = useState(null);
+  const { allUsers } = useSocial();
+
+  // Conversations from API
+  const [conversations, setConversations] = useState([]);
+  const [convLoading, setConvLoading] = useState(true);
+
+  // Selected chat
+  const [selectedConvId, setSelectedConvId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [msgLoading, setMsgLoading] = useState(false);
+
+  // Input
+  const [messageInput, setMessageInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef(null);
+
+  // New message modal
   const [showNewMessage, setShowNewMessage] = useState(false);
+  const [newMsgSearch, setNewMsgSearch] = useState('');
+
+  // Sidebar search
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [conversations, setConversations] = useState([
-    {
-      id: 1,
-      with: {
-        name: 'Dr. Maria Santos',
-        avatar: 'M',
-        role: 'faculty',
-        department: 'CS',
-        online: true
-      },
-      lastMessage: {
-        text: 'Great job on your project proposal! Let me know if you need any revisions.',
-        time: '10:30 AM',
-        read: false
-      },
-      unread: 2,
-      messages: [
-        { id: 101, sender: 'them', text: 'Hello! I\'ve submitted my project proposal.', time: '9:00 AM' },
-        { id: 102, sender: 'them', text: 'Please let me know if you have any feedback.', time: '9:01 AM' },
-        { id: 103, sender: 'me', text: 'Hi Dr. Santos, I\'ll check it right away.', time: '9:30 AM' },
-        { id: 104, sender: 'them', text: 'Great job on your project proposal! Let me know if you need any revisions.', time: '10:30 AM' }
-      ]
-    },
-    {
-      id: 2,
-      with: {
-        name: 'John Smith',
-        avatar: 'J',
-        role: 'student',
-        course: 'CS 301',
-        online: false
-      },
-      lastMessage: {
-        text: 'Can we meet to discuss the group project?',
-        time: 'Yesterday',
-        read: true
-      },
-      unread: 0,
-      messages: [
-        { id: 201, sender: 'them', text: 'Hey! Are you free this afternoon?', time: 'Yesterday' },
-        { id: 202, sender: 'me', text: 'Sure, what time?', time: 'Yesterday' },
-        { id: 203, sender: 'them', text: 'Can we meet to discuss the group project?', time: 'Yesterday' }
-      ]
-    },
-    {
-      id: 3,
-      with: {
-        name: 'CS Student Council',
-        avatar: 'S',
-        role: 'organization',
-        online: true
-      },
-      lastMessage: {
-        text: 'Hackathon registration closes tomorrow! Sign up now!',
-        time: '2:30 PM',
-        read: false
-      },
-      unread: 1,
-      messages: [
-        { id: 301, sender: 'them', text: 'Join us for the annual CS Hackathon!', time: 'Yesterday' },
-        { id: 302, sender: 'them', text: 'Hackathon registration closes tomorrow! Sign up now!', time: '2:30 PM' }
-      ]
-    },
-    {
-      id: 4,
-      with: {
-        name: 'Alice Johnson',
-        avatar: 'A',
-        role: 'student',
-        course: 'CS 302',
-        online: true
-      },
-      lastMessage: {
-        text: 'Thanks for the study notes! They were really helpful.',
-        time: '11:45 AM',
-        read: true
-      },
-      unread: 0,
-      messages: [
-        { id: 401, sender: 'me', text: 'Here are the notes from today\'s lecture.', time: '10:00 AM' },
-        { id: 402, sender: 'them', text: 'Thanks for the study notes! They were really helpful.', time: '11:45 AM' }
-      ]
-    }
-  ]);
+  // ── Fetch conversations on mount ──
+  const fetchConversations = async () => {
+    setConvLoading(true);
+    try {
+      const res = await axios.get('/messages/conversations');
+      setConversations(res.data);
+    } catch (e) { console.error(e); }
+    finally { setConvLoading(false); }
+  };
 
-  const [messageInput, setMessageInput] = useState('');
+  useEffect(() => { fetchConversations(); }, []);
 
-  const handleSendMessage = () => {
-    if (messageInput.trim() && selectedChat) {
-      const newMessage = {
-        id: Date.now(),
-        sender: 'me',
-        text: messageInput,
-        time: 'Just now'
-      };
+  // ── Fetch messages when a conversation is selected ──
+  const openConversation = async (conv) => {
+    setSelectedConvId(conv.id);
+    setMsgLoading(true);
+    try {
+      const res = await axios.get(`/messages/conversations/${conv.id}/messages`);
+      setMessages(res.data);
+      // Mark as read
+      axios.post(`/messages/conversations/${conv.id}/read`).catch(() => {});
+    } catch (e) { console.error(e); }
+    finally { setMsgLoading(false); }
+  };
 
-      setConversations(conversations.map(conv => {
-        if (conv.id === selectedChat.id) {
-          return {
-            ...conv,
-            messages: [...conv.messages, newMessage],
-            lastMessage: {
-              text: messageInput,
-              time: 'Just now',
-              read: false
-            }
-          };
-        }
-        return conv;
-      }));
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
-      setSelectedChat({
-        ...selectedChat,
-        messages: [...selectedChat.messages, newMessage],
-        lastMessage: {
-          text: messageInput,
-          time: 'Just now',
-          read: false
-        }
+  // ── Send message ──
+  const handleSendMessage = async () => {
+    if (!messageInput.trim() || !selectedConvId || sending) return;
+    setSending(true);
+    try {
+      const res = await axios.post(`/messages/conversations/${selectedConvId}`, {
+        content: messageInput,
       });
-
+      setMessages(prev => [...prev, res.data]);
       setMessageInput('');
-    }
+      // Update last message preview in sidebar
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConvId
+          ? { ...c, last_message: { content: messageInput, created_at: new Date().toISOString() }, unread_count: 0 }
+          : c
+      ));
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
   };
 
-  const getTimeDisplay = (time) => {
-    if (time === 'Just now') return time;
-    if (time.includes(':')) return time;
-    return time;
+  // ── Start new conversation from modal ──
+  const handleStartConversation = async (otherUser) => {
+    setShowNewMessage(false);
+    // Check if conversation already exists
+    const existing = conversations.find(c => c.other_user?.id === otherUser.id);
+    if (existing) { openConversation(existing); return; }
+    // Open a virtual conversation (first message will create it on the backend)
+    const virtual = {
+      id: `new-${otherUser.id}`,
+      other_user: otherUser,
+      last_message: null,
+      unread_count: 0,
+      _isNew: true,
+      _newUserId: otherUser.id,
+    };
+    setConversations(prev => [virtual, ...prev]);
+    setSelectedConvId(virtual.id);
+    setMessages([]);
   };
 
-  const styles = {
-    container: {
-      display: 'flex',
-      height: 'calc(100vh - 120px)',
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
-    },
-    sidebar: {
-      width: '350px',
-      borderRight: '1px solid #e3e6f0',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#f8f9fc'
-    },
-    sidebarHeader: {
-      padding: '20px',
-      borderBottom: '1px solid #e3e6f0',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    sidebarTitle: {
-      fontSize: '18px',
-      fontWeight: '600',
-      color: '#1f2f70',
-      margin: 0
-    },
-    newMessageBtn: {
-      width: '36px',
-      height: '36px',
-      borderRadius: '50%',
-      backgroundColor: '#1cc88a',
-      color: 'white',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.3s ease',
-      ':hover': {
-        transform: 'scale(1.1)',
-        backgroundColor: '#169b6b'
+  // If currently in a "new" (virtual) conversation and user sends a message, create it via the API
+  const handleSendNewConversation = async () => {
+    if (!messageInput.trim() || sending) return;
+    const conv = conversations.find(c => c.id === selectedConvId);
+    if (!conv?._isNew) return;
+    setSending(true);
+    try {
+      // Send first message — backend creates the conversation
+      const res = await axios.post(`/messages/conversations/${conv._newUserId}`, {
+        content: messageInput,
+      });
+      setMessageInput('');
+      // Refresh conversations to get the real one
+      await fetchConversations();
+      setSelectedConvId(res.data?.conversation_id || null);
+      if (res.data?.conversation_id) {
+        const msgRes = await axios.get(`/messages/conversations/${res.data.conversation_id}/messages`);
+        setMessages(msgRes.data);
       }
-    },
-    searchContainer: {
-      padding: '16px',
-      borderBottom: '1px solid #e3e6f0'
-    },
-    searchInput: {
-      width: '100%',
-      padding: '10px 16px',
-      border: '1px solid #d1d3e2',
-      borderRadius: '20px',
-      fontSize: '14px',
-      outline: 'none',
-      ':focus': {
-        borderColor: '#1cc88a'
-      }
-    },
-    conversationsList: {
-      flex: 1,
-      overflowY: 'auto'
-    },
-    conversationItem: {
-      display: 'flex',
-      gap: '12px',
-      padding: '16px',
-      cursor: 'pointer',
-      borderBottom: '1px solid #e3e6f0',
-      transition: 'background-color 0.2s ease',
-      position: 'relative',
-      backgroundColor: 'white',
-      ':hover': {
-        backgroundColor: '#f0f9ff'
-      }
-    },
-    selectedConversation: {
-      backgroundColor: '#f0f9ff',
-      borderLeft: '4px solid #1cc88a'
-    },
-    conversationAvatar: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      backgroundColor: '#4e73df',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-      fontWeight: '600',
-      position: 'relative',
-      flexShrink: 0
-    },
-    facultyAvatar: {
-      backgroundColor: '#1cc88a'
-    },
-    onlineIndicator: {
-      position: 'absolute',
-      bottom: '2px',
-      right: '2px',
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#1cc88a',
-      border: '2px solid white'
-    },
-    conversationInfo: {
-      flex: 1,
-      minWidth: 0
-    },
-    conversationHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '4px'
-    },
-    conversationName: {
-      fontSize: '15px',
-      fontWeight: '600',
-      color: '#1f2f70'
-    },
-    conversationTime: {
-      fontSize: '11px',
-      color: '#858796'
-    },
-    conversationPreview: {
-      fontSize: '13px',
-      color: '#5a5c69',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      marginBottom: '4px'
-    },
-    conversationMeta: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    role: {
-      fontSize: '11px',
-      color: '#858796',
-      textTransform: 'capitalize'
-    },
-    unreadBadge: {
-      backgroundColor: '#1cc88a',
-      color: 'white',
-      borderRadius: '12px',
-      padding: '2px 8px',
-      fontSize: '11px',
-      fontWeight: '600',
-      minWidth: '20px',
-      textAlign: 'center'
-    },
-    chatArea: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: 'white'
-    },
-    chatHeader: {
-      padding: '20px',
-      borderBottom: '1px solid #e3e6f0',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center'
-    },
-    chatUser: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px'
-    },
-    chatAvatar: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      backgroundColor: '#4e73df',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-      fontWeight: '600',
-      position: 'relative'
-    },
-    chatInfo: {
-      flex: 1
-    },
-    chatName: {
-      fontSize: '16px',
-      fontWeight: '600',
-      color: '#1f2f70',
-      marginBottom: '4px'
-    },
-    chatStatus: {
-      fontSize: '12px',
-      color: '#858796',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px'
-    },
-    onlineStatus: {
-      width: '8px',
-      height: '8px',
-      borderRadius: '50%',
-      backgroundColor: '#1cc88a',
-      display: 'inline-block'
-    },
-    chatActions: {
-      display: 'flex',
-      gap: '8px'
-    },
-    actionIcon: {
-      width: '36px',
-      height: '36px',
-      borderRadius: '50%',
-      backgroundColor: '#f8f9fc',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '18px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.2s ease',
-      ':hover': {
-        backgroundColor: '#e4e6ef'
-      }
-    },
-    messagesContainer: {
-      flex: 1,
-      padding: '20px',
-      overflowY: 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '16px',
-      backgroundColor: '#f8f9fc'
-    },
-    messageWrapper: {
-      display: 'flex',
-      width: '100%'
-    },
-    messageReceived: {
-      display: 'flex',
-      gap: '8px',
-      maxWidth: '70%'
-    },
-    messageSent: {
-      display: 'flex',
-      justifyContent: 'flex-end',
-      maxWidth: '70%',
-      marginLeft: 'auto'
-    },
-    messageAvatar: {
-      width: '32px',
-      height: '32px',
-      borderRadius: '50%',
-      backgroundColor: '#4e73df',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '12px',
-      fontWeight: '600',
-      flexShrink: 0
-    },
-    messageBubble: {
-      padding: '10px 14px',
-      borderRadius: '18px',
-      backgroundColor: 'white',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-      position: 'relative'
-    },
-    sentBubble: {
-      backgroundColor: '#1cc88a',
-      color: 'white'
-    },
-    messageText: {
-      fontSize: '14px',
-      lineHeight: '1.5',
-      marginBottom: '4px'
-    },
-    messageTime: {
-      fontSize: '10px',
-      opacity: 0.7,
-      textAlign: 'right'
-    },
-    messageInputContainer: {
-      padding: '20px',
-      borderTop: '1px solid #e3e6f0',
-      display: 'flex',
-      gap: '12px',
-      backgroundColor: 'white'
-    },
-    messageInput: {
-      flex: 1,
-      padding: '12px 16px',
-      border: '1px solid #d1d3e2',
-      borderRadius: '24px',
-      fontSize: '14px',
-      outline: 'none',
-      resize: 'none',
-      maxHeight: '100px',
-      fontFamily: 'inherit',
-      ':focus': {
-        borderColor: '#1cc88a'
-      }
-    },
-    sendButton: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      backgroundColor: '#1cc88a',
-      color: 'white',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '20px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.3s ease',
-      ':hover': {
-        backgroundColor: '#169b6b',
-        transform: 'scale(1.05)'
-      },
-      ':disabled': {
-        backgroundColor: '#a0d0b8',
-        cursor: 'not-allowed',
-        transform: 'none'
-      }
-    },
-    emptyState: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px',
-      color: '#858796',
-      textAlign: 'center'
-    },
-    emptyIcon: {
-      fontSize: '64px',
-      marginBottom: '20px',
-      opacity: 0.5
-    },
-    emptyTitle: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#1f2f70',
-      marginBottom: '10px'
-    },
-    emptyText: {
-      fontSize: '14px',
-      marginBottom: '20px'
-    },
-    startChatBtn: {
-      padding: '12px 24px',
-      backgroundColor: '#1cc88a',
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      fontSize: '14px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.3s ease',
-      ':hover': {
-        backgroundColor: '#169b6b',
-        transform: 'translateY(-2px)'
-      }
-    },
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1100
-    },
-    modal: {
-      backgroundColor: 'white',
-      borderRadius: '12px',
-      width: '90%',
-      maxWidth: '500px',
-      padding: '24px'
-    },
-    modalHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px'
-    },
-    modalTitle: {
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#1f2f70',
-      margin: 0
-    },
-    modalClose: {
-      background: 'none',
-      border: 'none',
-      fontSize: '24px',
-      cursor: 'pointer',
-      color: '#858796'
-    },
-    searchResults: {
-      maxHeight: '300px',
-      overflowY: 'auto',
-      marginBottom: '20px'
-    },
-    resultItem: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '12px',
-      padding: '12px',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s ease',
-      ':hover': {
-        backgroundColor: '#f8f9fc'
-      }
-    },
-    resultAvatar: {
-      width: '40px',
-      height: '40px',
-      borderRadius: '50%',
-      backgroundColor: '#4e73df',
-      color: 'white',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '16px',
-      fontWeight: '600'
-    },
-    resultInfo: {
-      flex: 1
-    },
-    resultName: {
-      fontSize: '15px',
-      fontWeight: '600',
-      color: '#1f2f70',
-      marginBottom: '2px'
-    },
-    resultMeta: {
-      fontSize: '12px',
-      color: '#858796'
-    }
+    } catch (e) { console.error(e); }
+    finally { setSending(false); }
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.with.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const isNewConv = conversations.find(c => c.id === selectedConvId)?._isNew;
+
+  const filteredConvs = conversations.filter(c =>
+    (c.other_user?.name || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const searchUsers = [
-    { name: 'Dr. Emily Davis', role: 'faculty', department: 'CS', avatar: 'E' },
-    { name: 'Michael Brown', role: 'student', course: 'CS 303', avatar: 'M' },
-    { name: 'Prof. Sarah Wilson', role: 'faculty', department: 'IT', avatar: 'S' }
-  ];
+  const filteredNewUsers = allUsers.filter(u =>
+    u.name.toLowerCase().includes(newMsgSearch.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(newMsgSearch.toLowerCase())
+  );
+
+  const selectedConv = conversations.find(c => c.id === selectedConvId);
 
   return (
-    <div style={styles.container}>
-      {/* Sidebar */}
-      <div style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <h2 style={styles.sidebarTitle}>Messages</h2>
-          <button 
-            style={styles.newMessageBtn}
-            onClick={() => setShowNewMessage(true)}
-          >
-            +
-          </button>
+    <div style={S.container}>
+      {/* ── Sidebar ── */}
+      <div style={S.sidebar}>
+        <div style={S.sidebarHeader}>
+          <h2 style={S.sidebarTitle}>Messages</h2>
+          <button style={S.newBtn} onClick={() => { setNewMsgSearch(''); setShowNewMessage(true); }}>✉+</button>
         </div>
-
-        <div style={styles.searchContainer}>
+        <div style={S.searchBox}>
           <input
+            style={S.searchInput}
             type="text"
-            placeholder="Search conversations..."
-            style={styles.searchInput}
+            placeholder="Search conversations…"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-
-        <div style={styles.conversationsList}>
-          {filteredConversations.map(conv => (
+        <div style={S.convList}>
+          {convLoading ? (
+            <div style={S.hint}>Loading…</div>
+          ) : filteredConvs.length === 0 ? (
+            <div style={S.hint}>No conversations yet.</div>
+          ) : filteredConvs.map(conv => (
             <div
               key={conv.id}
-              style={{
-                ...styles.conversationItem,
-                ...(selectedChat?.id === conv.id ? styles.selectedConversation : {})
-              }}
-              onClick={() => setSelectedChat(conv)}
+              style={{ ...S.convItem, ...(selectedConvId === conv.id ? S.convActive : {}) }}
+              onClick={() => conv._isNew ? setSelectedConvId(conv.id) : openConversation(conv)}
             >
-              <div style={{
-                ...styles.conversationAvatar,
-                ...(conv.with.role === 'faculty' ? styles.facultyAvatar : {})
-              }}>
-                {conv.with.avatar}
-                {conv.with.online && <span style={styles.onlineIndicator}></span>}
+              <div style={{ ...S.avatar, backgroundColor: conv.other_user?.role === 'faculty' ? '#4e73df' : '#1cc88a' }}>
+                {(conv.other_user?.name || '?').charAt(0)}
               </div>
-              <div style={styles.conversationInfo}>
-                <div style={styles.conversationHeader}>
-                  <span style={styles.conversationName}>{conv.with.name}</span>
-                  <span style={styles.conversationTime}>{conv.lastMessage.time}</span>
+              <div style={S.convInfo}>
+                <div style={S.convHeader}>
+                  <span style={S.convName}>{conv.other_user?.name || 'Unknown'}</span>
+                  <span style={S.convTime}>
+                    {conv.last_message ? new Date(conv.last_message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </span>
                 </div>
-                <div style={styles.conversationPreview}>
-                  {conv.lastMessage.text}
+                <div style={S.convPreview}>
+                  {conv._isNew ? 'New conversation' : (conv.last_message?.content || 'No messages yet')}
                 </div>
-                <div style={styles.conversationMeta}>
-                  <span style={styles.role}>{conv.with.role}</span>
-                  {conv.unread > 0 && (
-                    <span style={styles.unreadBadge}>{conv.unread}</span>
-                  )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={S.roleLabel}>{conv.other_user?.role}</span>
+                  {conv.unread_count > 0 && <span style={S.badge}>{conv.unread_count}</span>}
                 </div>
               </div>
             </div>
@@ -673,136 +189,118 @@ const Messages = () => {
         </div>
       </div>
 
-      {/* Chat Area */}
-      {selectedChat ? (
-        <div style={styles.chatArea}>
-          {/* Chat Header */}
-          <div style={styles.chatHeader}>
-            <div style={styles.chatUser}>
-              <div style={{
-                ...styles.chatAvatar,
-                ...(selectedChat.with.role === 'faculty' ? styles.facultyAvatar : {})
-              }}>
-                {selectedChat.with.avatar}
-                {selectedChat.with.online && <span style={styles.onlineIndicator}></span>}
+      {/* ── Chat Area ── */}
+      {selectedConv ? (
+        <div style={S.chatArea}>
+          {/* Header */}
+          <div style={S.chatHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ ...S.avatar, backgroundColor: selectedConv.other_user?.role === 'faculty' ? '#4e73df' : '#1cc88a', width: 44, height: 44 }}>
+                {(selectedConv.other_user?.name || '?').charAt(0)}
               </div>
-              <div style={styles.chatInfo}>
-                <div style={styles.chatName}>{selectedChat.with.name}</div>
-                <div style={styles.chatStatus}>
-                  {selectedChat.with.online ? (
-                    <>
-                      <span style={styles.onlineStatus}></span>
-                      <span>Online</span>
-                    </>
-                  ) : (
-                    <span>Offline</span>
-                  )}
-                  <span>•</span>
-                  <span>{selectedChat.with.role}</span>
-                  <span>•</span>
-                  <span>{selectedChat.with.department || selectedChat.with.course}</span>
-                </div>
+              <div>
+                <div style={S.chatName}>{selectedConv.other_user?.name}</div>
+                <div style={S.chatMeta}>{selectedConv.other_user?.role} · {selectedConv.other_user?.department || selectedConv.other_user?.course || ''}</div>
               </div>
-            </div>
-            <div style={styles.chatActions}>
-              <button style={styles.actionIcon}>📞</button>
-              <button style={styles.actionIcon}>📹</button>
-              <button style={styles.actionIcon}>ℹ️</button>
             </div>
           </div>
 
           {/* Messages */}
-          <div style={styles.messagesContainer}>
-            {selectedChat.messages.map((msg, index) => (
-              <div
-                key={msg.id || index}
-                style={msg.sender === 'me' ? styles.messageSent : styles.messageReceived}
-              >
-                {msg.sender !== 'me' && (
-                  <div style={styles.messageAvatar}>
-                    {selectedChat.with.avatar}
+          <div style={S.msgContainer}>
+            {msgLoading ? (
+              <div style={S.hint}>Loading messages…</div>
+            ) : messages.length === 0 ? (
+              <div style={S.hint}>No messages yet. Say hello! 👋</div>
+            ) : messages.map((msg, i) => {
+              const isMe = msg.sender_id === user?.id;
+              return (
+                <div key={msg.id || i} style={isMe ? S.sentWrapper : S.recvWrapper}>
+                  {!isMe && (
+                    <div style={{ ...S.msgAvatar, backgroundColor: '#4e73df' }}>
+                      {(selectedConv.other_user?.name || '?').charAt(0)}
+                    </div>
+                  )}
+                  <div style={{ ...S.bubble, ...(isMe ? S.sentBubble : S.recvBubble) }}>
+                    <div style={S.msgText}>{msg.content || msg.text}</div>
+                    <div style={S.msgTime}>
+                      {msg.created_at ? new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                    </div>
                   </div>
-                )}
-                <div style={{
-                  ...styles.messageBubble,
-                  ...(msg.sender === 'me' ? styles.sentBubble : {})
-                }}>
-                  <div style={styles.messageText}>{msg.text}</div>
-                  <div style={styles.messageTime}>{getTimeDisplay(msg.time)}</div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            <div ref={messagesEndRef} />
           </div>
 
-          {/* Message Input */}
-          <div style={styles.messageInputContainer}>
+          {/* Input */}
+          <div style={S.inputBar}>
             <textarea
-              style={styles.messageInput}
-              placeholder="Type a message..."
+              style={S.textInput}
+              placeholder="Type a message…"
               value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
+              onChange={e => setMessageInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              rows="1"
+              rows={1}
             />
             <button
-              style={styles.sendButton}
-              onClick={handleSendMessage}
-              disabled={!messageInput.trim()}
+              style={{ ...S.sendBtn, opacity: (!messageInput.trim() || sending) ? 0.5 : 1 }}
+              onClick={isNewConv ? handleSendNewConversation : handleSendMessage}
+              disabled={!messageInput.trim() || sending}
             >
               ➤
             </button>
           </div>
         </div>
       ) : (
-        <div style={styles.emptyState}>
-          <div style={styles.emptyIcon}>💬</div>
-          <h3 style={styles.emptyTitle}>Your Messages</h3>
-          <p style={styles.emptyText}>
-            Select a conversation to start chatting
-          </p>
-          <button
-            style={styles.startChatBtn}
-            onClick={() => setShowNewMessage(true)}
-          >
+        <div style={S.emptyState}>
+          <div style={{ fontSize: 64, opacity: 0.4, marginBottom: 20 }}>💬</div>
+          <h3 style={{ fontSize: 20, fontWeight: 600, color: '#1f2f70', marginBottom: 10 }}>Your Messages</h3>
+          <p style={{ color: '#858796', marginBottom: 20 }}>Select a conversation or start a new one</p>
+          <button style={S.startBtn} onClick={() => { setNewMsgSearch(''); setShowNewMessage(true); }}>
             New Message
           </button>
         </div>
       )}
 
-      {/* New Message Modal */}
+      {/* ── New Message Modal ── */}
       {showNewMessage && (
-        <div style={styles.modalOverlay} onClick={() => setShowNewMessage(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>New Message</h3>
-              <button
-                style={styles.modalClose}
-                onClick={() => setShowNewMessage(false)}
-              >
-                ×
-              </button>
+        <div style={S.overlay} onClick={() => setShowNewMessage(false)}>
+          <div style={S.modal} onClick={e => e.stopPropagation()}>
+            <div style={S.modalHead}>
+              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#1f2f70' }}>New Message</h3>
+              <button onClick={() => setShowNewMessage(false)} style={S.closeBtn}>×</button>
             </div>
-
-            <div style={styles.searchContainer}>
+            <div style={{ padding: '12px 20px' }}>
               <input
+                style={S.searchInput}
                 type="text"
-                placeholder="Search for people..."
-                style={styles.searchInput}
+                placeholder="Search people…"
+                value={newMsgSearch}
+                onChange={e => setNewMsgSearch(e.target.value)}
                 autoFocus
               />
             </div>
-
-            <div style={styles.searchResults}>
-              {searchUsers.map((user, index) => (
-                <div key={index} style={styles.resultItem}>
-                  <div style={styles.resultAvatar}>{user.avatar}</div>
-                  <div style={styles.resultInfo}>
-                    <div style={styles.resultName}>{user.name}</div>
-                    <div style={styles.resultMeta}>
-                      {user.role} • {user.department || user.course}
+            <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+              {filteredNewUsers.length === 0 ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#858796' }}>
+                  {newMsgSearch.length < 1 ? 'Type to search users…' : 'No users found.'}
+                </div>
+              ) : filteredNewUsers.map(u => (
+                <div
+                  key={u.id}
+                  style={S.userRow}
+                  onClick={() => handleStartConversation(u)}
+                >
+                  <div style={{ ...S.avatar, backgroundColor: u.role === 'faculty' ? '#4e73df' : '#1cc88a' }}>
+                    {u.name.charAt(0)}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, color: '#1f2f70', fontSize: 14 }}>{u.name}</div>
+                    <div style={{ fontSize: 12, color: '#858796', textTransform: 'capitalize' }}>
+                      {u.role}{u.department ? ` · ${u.department}` : ''}{u.course ? ` · ${u.course}` : ''}
                     </div>
                   </div>
-                  <ConnectButton userName={user.name} variant="compact" size="sm" />
+                  <span style={S.msgBtn}>Message →</span>
                 </div>
               ))}
             </div>
@@ -811,6 +309,52 @@ const Messages = () => {
       )}
     </div>
   );
+};
+
+const S = {
+  container: { display: 'flex', height: 'calc(100vh - 120px)', backgroundColor: 'white', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' },
+  sidebar: { width: 320, borderRight: '1px solid #e3e6f0', display: 'flex', flexDirection: 'column', backgroundColor: '#f8f9fc', flexShrink: 0 },
+  sidebarHeader: { padding: '18px 16px', borderBottom: '1px solid #e3e6f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  sidebarTitle: { fontSize: 18, fontWeight: 600, color: '#1f2f70', margin: 0 },
+  newBtn: { width: 34, height: 34, borderRadius: '50%', backgroundColor: '#1cc88a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700 },
+  searchBox: { padding: '10px 12px', borderBottom: '1px solid #e3e6f0' },
+  searchInput: { width: '100%', padding: '9px 14px', border: '1px solid #d1d3e2', borderRadius: 20, fontSize: 14, outline: 'none', boxSizing: 'border-box' },
+  convList: { flex: 1, overflowY: 'auto' },
+  convItem: { display: 'flex', gap: 12, padding: '14px 16px', cursor: 'pointer', borderBottom: '1px solid #e3e6f0', backgroundColor: 'white', transition: 'background .2s' },
+  convActive: { backgroundColor: '#f0f9ff', borderLeft: '4px solid #1cc88a' },
+  avatar: { width: 42, height: 42, borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 600, flexShrink: 0 },
+  convInfo: { flex: 1, minWidth: 0 },
+  convHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 },
+  convName: { fontSize: 14, fontWeight: 600, color: '#1f2f70' },
+  convTime: { fontSize: 11, color: '#858796' },
+  convPreview: { fontSize: 13, color: '#5a5c69', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 3 },
+  roleLabel: { fontSize: 11, color: '#858796', textTransform: 'capitalize' },
+  badge: { backgroundColor: '#1cc88a', color: 'white', borderRadius: 12, padding: '1px 7px', fontSize: 11, fontWeight: 600 },
+  hint: { padding: 30, textAlign: 'center', color: '#858796', fontSize: 14 },
+  chatArea: { flex: 1, display: 'flex', flexDirection: 'column' },
+  chatHeader: { padding: '16px 20px', borderBottom: '1px solid #e3e6f0', backgroundColor: 'white' },
+  chatName: { fontSize: 15, fontWeight: 600, color: '#1f2f70', marginBottom: 2 },
+  chatMeta: { fontSize: 12, color: '#858796', textTransform: 'capitalize' },
+  msgContainer: { flex: 1, overflowY: 'auto', padding: '20px 16px', backgroundColor: '#f8f9fc', display: 'flex', flexDirection: 'column', gap: 12 },
+  sentWrapper: { display: 'flex', justifyContent: 'flex-end', maxWidth: '72%', alignSelf: 'flex-end', width: '100%' },
+  recvWrapper: { display: 'flex', gap: 8, maxWidth: '72%', alignSelf: 'flex-start' },
+  msgAvatar: { width: 30, height: 30, borderRadius: '50%', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600, flexShrink: 0, marginTop: 4 },
+  bubble: { padding: '10px 14px', borderRadius: 18, maxWidth: '100%' },
+  sentBubble: { backgroundColor: '#1cc88a', color: 'white', borderBottomRightRadius: 4 },
+  recvBubble: { backgroundColor: 'white', color: '#1f2f70', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', borderBottomLeftRadius: 4 },
+  msgText: { fontSize: 14, lineHeight: 1.5, marginBottom: 3 },
+  msgTime: { fontSize: 10, opacity: 0.65, textAlign: 'right' },
+  inputBar: { padding: '16px', borderTop: '1px solid #e3e6f0', display: 'flex', gap: 10, backgroundColor: 'white' },
+  textInput: { flex: 1, padding: '10px 16px', border: '1px solid #d1d3e2', borderRadius: 24, fontSize: 14, outline: 'none', resize: 'none', maxHeight: 100, fontFamily: 'inherit' },
+  sendBtn: { width: 46, height: 46, borderRadius: '50%', backgroundColor: '#1cc88a', color: 'white', border: 'none', cursor: 'pointer', fontSize: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  emptyState: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#858796', textAlign: 'center' },
+  startBtn: { padding: '11px 24px', backgroundColor: '#1cc88a', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 },
+  modal: { backgroundColor: 'white', borderRadius: 14, width: '90%', maxWidth: 480, maxHeight: '80vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 20px', borderBottom: '1px solid #e3e6f0' },
+  closeBtn: { background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#858796', lineHeight: 1 },
+  userRow: { display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0', transition: 'background .15s' },
+  msgBtn: { fontSize: 12, color: '#1f2f70', fontWeight: 600, flexShrink: 0 },
 };
 
 export default Messages;

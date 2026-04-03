@@ -2,13 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 
 const MessageChat = ({ contactName = 'Dr. Maria Santos', messages = [], onSendMessage }) => {
   const [newMessage, setNewMessage] = useState('');
+  const [showInfo, setShowInfo] = useState(false);
   const messagesEndRef = useRef(null);
 
-  const mockMessages = messages.length > 0 ? messages : [
-    { id: 1, author: 'Dr. Maria Santos', text: 'Hi! Great job on your project proposal. I like the approach you took with the database design.', time: '2h ago', me: false },
-    { id: 2, author: 'You', text: 'Thank you professor! I was inspired by your lecture on normalization.', time: '1h ago', me: true },
-    { id: 3, author: 'Dr. Maria Santos', text: "That's wonderful to hear! Keep up the good work. Do you have questions about the ER diagram?", time: '45min ago', me: false }
-  ];
+  const mockMessages = messages;
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -145,6 +142,48 @@ const MessageChat = ({ contactName = 'Dr. Maria Santos', messages = [], onSendMe
       alignItems: 'center',
       justifyContent: 'center',
       transition: 'all 0.3s ease'
+    },
+    actionIcons: {
+      display: 'flex',
+      gap: '16px',
+      alignItems: 'center',
+      marginLeft: 'auto'
+    },
+    iconBtn: {
+      background: 'none',
+      border: 'none',
+      fontSize: '20px',
+      cursor: 'pointer',
+      color: '#858796',
+      transition: 'color 0.2s',
+      ':hover': {
+        color: '#1f2f70'
+      }
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 1000
+    },
+    modal: {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      width: '350px',
+      padding: '24px',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+      textAlign: 'center'
+    },
+    modalClose: {
+      position: 'absolute',
+      right: '24px',
+      top: '24px',
+      background: 'none',
+      border: 'none',
+      fontSize: '24px',
+      cursor: 'pointer',
+      color: '#858796'
     }
   };
 
@@ -158,6 +197,9 @@ const MessageChat = ({ contactName = 'Dr. Maria Santos', messages = [], onSendMe
             <span style={styles.onlineIndicator}></span>
             Online
           </div>
+        </div>
+        <div style={styles.actionIcons}>
+          <button style={styles.iconBtn} aria-label="Info" onClick={() => setShowInfo(true)}>ℹ️</button>
         </div>
       </div>
 
@@ -190,6 +232,31 @@ const MessageChat = ({ contactName = 'Dr. Maria Santos', messages = [], onSendMe
           ➤
         </button>
       </form>
+
+      {showInfo && (
+        <div style={styles.modalOverlay}>
+          <div style={{...styles.modal, position: 'relative'}}>
+            <button style={styles.modalClose} onClick={() => setShowInfo(false)}>×</button>
+            <div style={{...styles.contactAvatar, width: '80px', height: '80px', fontSize: '32px', margin: '0 auto 16px auto'}}>
+              {contactName.charAt(0)}
+            </div>
+            <h2 style={{fontSize: '20px', color: '#1f2f70', margin: '0 0 4px 0'}}>{contactName}</h2>
+            <p style={{color: '#1cc88a', fontWeight: '500', margin: '0 0 16px 0'}}>Online</p>
+            
+            <div style={{textAlign: 'left', padding: '16px', backgroundColor: '#f8f9fc', borderRadius: '8px'}}>
+              <div style={{marginBottom: '12px'}}>
+                <strong style={{display: 'block', fontSize: '13px', color: '#858796', marginBottom: '4px'}}>Department</strong>
+                <span style={{color: '#5a5c69', fontSize: '14px'}}>Computer Science</span>
+              </div>
+              <div>
+                <strong style={{display: 'block', fontSize: '13px', color: '#858796', marginBottom: '4px'}}>About</strong>
+                <span style={{color: '#5a5c69', fontSize: '14px'}}>Passionate about learning and connecting with academics! Feel free to reach out.</span>
+              </div>
+            </div>
+            <button style={{width: '100%', padding: '10px', backgroundColor: '#1f2f70', color: 'white', border: 'none', borderRadius: '8px', marginTop: '16px', cursor: 'pointer'}}>View Full Profile</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

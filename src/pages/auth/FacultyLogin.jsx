@@ -9,22 +9,27 @@ const FacultyLogin = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
 
-  const handleSubmit = (e) => {
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError('');
     
-    setTimeout(() => {
-      login({
-        id: facultyId,
-        name: 'Prof. Jane Smith',
-        role: 'faculty',
-        email: 'jane.smith@ccs.edu',
-        department: 'Computer Science',
-        specialization: 'Database Systems'
-      });
-      navigate('/faculty-dashboard');
-      setLoading(false);
-    }, 1500);
+    const email = facultyId.includes('@') ? facultyId : `${facultyId}@ccs.edu`;
+    
+    const res = await login(email, password);
+    
+    if (res.success) {
+      if (res.user.role === 'faculty') {
+        navigate('/faculty-dashboard');
+      } else {
+        setError('Unauthorized: Not a faculty account.');
+      }
+    } else {
+      setError(res.error);
+    }
+    setLoading(false);
   };
 
   return (
@@ -35,6 +40,8 @@ const FacultyLogin = () => {
           <h1 style={styles.title}>Faculty Login</h1>
           <p style={styles.subtitle}>CCS Faculty Portal</p>
         </div>
+
+        {error && <div style={{color: 'red', textAlign: 'center', marginBottom: '15px'}}>{error}</div>}
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
