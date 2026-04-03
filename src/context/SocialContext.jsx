@@ -1,356 +1,216 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import axios from 'axios';
 import { useAuth } from './AuthContext';
 
 const SocialContext = createContext(null);
 
 export const useSocial = () => {
   const context = useContext(SocialContext);
-  if (!context) {
-    throw new Error('useSocial must be used within a SocialProvider');
-  }
+  if (!context) throw new Error('useSocial must be used within a SocialProvider');
   return context;
 };
 
 export const SocialProvider = ({ children }) => {
   const { user } = useAuth();
+
   const [posts, setPosts] = useState([]);
-  const [notifications, setNotifications] = useState([]);
   const [studyGroups, setStudyGroups] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Load mock data
-  useEffect(() => {
-    if (user) {
-      loadMockData();
+  // Network
+  const [allUsers, setAllUsers] = useState([]);
+  const [connections, setConnections] = useState([]);
+  const [pendingRequests, setPendingRequests] = useState([]);
+
+  // Notifications — fetched from backend
+  const [notifications, setNotifications] = useState([]);
+
+  // ── Fetch social data ──────────────────────────────────────────────────
+  const fetchSocialData = useCallback(async () => {
+    if (!user || !axios.defaults.headers.common['Authorization']) return;
+    setLoading(true);
+    try {
+      const [postsRes, usersRes, connectionsRes, groupsRes] = await Promise.all([
+        axios.get('/social/posts'),
+        axios.get('/social/users'),
+        axios.get('/social/connections'),
+        axios.get('/social/study-groups'),
+      ]);
+
+      setPosts(postsRes.data.map(p => ({
+        id: p.id,
+        content: p.content,
+        timestamp: new Date(p.created_at).toLocaleDateString(),
+        likes: p.likes_count || 0,
+        liked: false,
+        author: {
+          id: p.user?.id,
+          name: p.user?.name,
+          role: p.user?.role,
+          avatar: p.user?.name?.charAt(0) || 'U',
+          department: p.user?.department || 'CCS',
+        },
+        comments: (p.comments || []).map(c => ({
+          id: c.id,
+          content: c.content,
+          timestamp: new Date(c.created_at).toLocaleDateString(),
+          author: {
+            id: c.user?.id,
+            name: c.user?.name,
+            role: c.user?.role,
+            avatar: c.user?.name?.charAt(0) || 'U',
+          },
+        })),
+      })));
+
+      setAllUsers(usersRes.data);
+
+      const activeConnections = [];
+      const incomingRequests = [];
+      connectionsRes.data.forEach(conn => {
+        if (conn.status === 'accepted') {
+          activeConnections.push(conn.requester_id === user.id ? conn.receiver_id : conn.requester_id);
+        } else if (conn.status === 'pending' && conn.receiver_id === user.id) {
+          incomingRequests.push({
+            id: conn.id,
+            fromId: conn.requester?.id,
+            fromName: conn.requester?.name,
+            role: conn.requester?.role,
+            avatar: conn.requester?.name?.charAt(0),
+            timestamp: new Date(conn.created_at).toLocaleDateString(),
+          });
+        }
+      });
+      setConnections(activeConnections);
+      setPendingRequests(incomingRequests);
+
+      setStudyGroups(groupsRes.data.map(g => ({
+        id: g.id,
+        name: g.name,
+        schedule: g.schedule,
+        agenda: g.agenda,
+        course: g.course || '',
+        description: g.agenda || '',
+        createdBy: g.creator?.name,
+        members: g.members?.length || 0,
+        isMember: g.members?.some(m => m.user?.id === user.id),
+      })));
+    } catch (err) {
+      console.error('Failed to load social data', err);
+    } finally {
+      setLoading(false);
     }
   }, [user]);
 
-  const loadMockData = () => {
-    // Mock posts
-    setPosts([
-      {
-        id: 1,
-        author: {
-          id: 2,
-          name: 'Dr. Maria Santos',
-          role: 'faculty',
-          avatar: 'M',
-          department: 'CS'
-        },
-        content: 'Just uploaded new materials for CS 301 Database Systems. Check them out! 📚',
-        timestamp: '2 hours ago',
-        likes: 15,
-        comments: [
-          {
-            id: 101,
-            author: { id: 3, name: 'John Doe', role: 'student', avatar: 'J' },
-            content: 'Thank you Dr. Santos! Very helpful.',
-            timestamp: '1 hour ago'
-          },
-          {
-            id: 102,
-            author: { id: 4, name: 'Alice Johnson', role: 'student', avatar: 'A' },
-            content: 'The new slides are great!',
-            timestamp: '45 minutes ago'
-          }
-        ],
-        liked: false,
-        type: 'announcement'
-      },
-      {
-        id: 2,
-        author: {
-          id: 5,
-          name: 'CS Student Council',
-          role: 'organization',
-          avatar: 'S',
-          department: 'CS'
-        },
-        content: '🎉 CS Week Hackathon is coming! Join us on March 15-16 for 24 hours of coding, fun, and prizes! Sign up now!',
-        timestamp: '5 hours ago',
-        likes: 42,
-        comments: [
-          {
-            id: 103,
-            author: { id: 6, name: 'Bob Williams', role: 'student', avatar: 'B' },
-            content: 'Can freshmen join?',
-            timestamp: '4 hours ago'
-          }
-        ],
-        liked: true,
-        type: 'event'
-      },
-      {
-        id: 3,
-        author: {
-          id: 7,
-          name: 'Prof. Michael Brown',
-          role: 'faculty',
-          avatar: 'M',
-          department: 'IT'
-        },
-        content: 'Looking for research assistants for my AI project. If interested, please send me a message! 🤖',
-        timestamp: '1 day ago',
-        likes: 28,
-        comments: [],
-        liked: false,
-        type: 'opportunity'
-      }
-    ]);
-
-    // Mock notifications
-    setNotifications([
-      {
-        id: 1,
-        type: 'like',
-        content: 'Dr. Maria Santos liked your post',
-        timestamp: '5 minutes ago',
-        read: false,
-        link: '/social'
-      },
-      {
-        id: 2,
-        type: 'comment',
-        content: 'Alice Johnson commented on your post',
-        timestamp: '1 hour ago',
-        read: false,
-        link: '/social'
-      },
-      {
-        id: 3,
-        type: 'study_group',
-        content: 'New message in Database Systems Study Group',
-        timestamp: '2 hours ago',
-        read: true,
-        link: '/study-groups'
-      },
-      {
-        id: 4,
-        type: 'friend_request',
-        content: 'John Smith sent you a friend request',
-        timestamp: '1 day ago',
-        read: true,
-        link: '/social'
-      }
-    ]);
-
-    // Mock study groups
-    setStudyGroups([
-      {
-        id: 1,
-        name: 'Database Systems Study Group',
-        course: 'CS 301',
-        members: 12,
-        description: 'Weekly study sessions for Database Systems. We meet every Wednesday at 3 PM.',
-        createdBy: 'Dr. Maria Santos',
-        upcomingSession: 'Tomorrow, 3:00 PM',
-        messages: 156
-      },
-      {
-        id: 2,
-        name: 'Web Development Project Team',
-        course: 'CS 302',
-        members: 8,
-        description: 'Working on the final project together. Frontend and backend collaboration.',
-        createdBy: 'Prof. Johnson',
-        upcomingSession: 'Friday, 2:00 PM',
-        messages: 89
-      },
-      {
-        id: 3,
-        name: 'Algorithm Practice Group',
-        course: 'CS 303',
-        members: 15,
-        description: 'Preparing for coding interviews and exams. We solve LeetCode problems together.',
-        createdBy: 'Dr. Williams',
-        upcomingSession: 'Monday, 4:00 PM',
-        messages: 234
-      }
-    ]);
-  };
-
-  // Post functions
-  const createPost = (postData) => {
-    const newPost = {
-      id: posts.length + 1,
-      author: {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        avatar: user.name.charAt(0),
-        department: user.department || 'CS'
-      },
-      ...postData,
-      timestamp: 'Just now',
-      likes: 0,
-      comments: [],
-      liked: false
-    };
-    setPosts([newPost, ...posts]);
-    
-    // Create notification for followers (mock)
-    addNotification({
-      type: 'post',
-      content: `${user.name} created a new post`,
-      link: '/social'
-    });
-    
-    return newPost;
-  };
-
-  const likePost = (postId) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, likes: post.liked ? post.likes - 1 : post.likes + 1, liked: !post.liked }
-        : post
-    ));
-
-    // Add notification for post author (mock)
-    const post = posts.find(p => p.id === postId);
-    if (post && post.author.id !== user.id) {
-      addNotification({
-        type: 'like',
-        content: `${user.name} liked your post`,
-        link: '/social'
-      });
+  // ── Fetch notifications from backend ──────────────────────────────────
+  const fetchNotifications = useCallback(async () => {
+    if (!user || !axios.defaults.headers.common['Authorization']) return;
+    try {
+      const res = await axios.get('/notifications');
+      setNotifications(res.data);
+    } catch (err) {
+      console.error('Failed to fetch notifications', err);
     }
-  };
+  }, [user]);
 
-  const addComment = (postId, commentText) => {
-    const newComment = {
-      id: Date.now(),
-      author: {
-        id: user.id,
-        name: user.name,
-        role: user.role,
-        avatar: user.name.charAt(0)
-      },
-      content: commentText,
-      timestamp: 'Just now'
-    };
-    
-    setPosts(posts.map(post =>
-      post.id === postId
-        ? { ...post, comments: [...post.comments, newComment] }
-        : post
-    ));
-
-    // Add notification for post author (mock)
-    const post = posts.find(p => p.id === postId);
-    if (post && post.author.id !== user.id) {
-      addNotification({
-        type: 'comment',
-        content: `${user.name} commented on your post`,
-        link: '/social'
-      });
+  // Initial load
+  useEffect(() => {
+    if (user && axios.defaults.headers.common['Authorization']) {
+      fetchSocialData();
+      fetchNotifications();
     }
+  }, [user, fetchSocialData, fetchNotifications]);
+
+  // Poll notifications every 30 seconds
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user, fetchNotifications]);
+
+  // ── Posts ──────────────────────────────────────────────────────────────
+  const createPost = async (postData) => {
+    try {
+      await axios.post('/social/posts', postData);
+      await fetchSocialData();
+    } catch (err) { console.error(err); }
   };
 
-  // Notification functions
-  const addNotification = (notification) => {
-    const newNotification = {
-      id: Date.now(),
-      timestamp: 'Just now',
-      read: false,
-      ...notification
-    };
-    setNotifications(prev => [newNotification, ...prev]);
+  const likePost = async (postId) => {
+    try {
+      await axios.post(`/social/posts/${postId}/like`);
+      setPosts(prev => prev.map(p =>
+        p.id === postId
+          ? { ...p, likes: p.liked ? p.likes - 1 : p.likes + 1, liked: !p.liked }
+          : p
+      ));
+    } catch (err) { console.error(err); }
   };
 
-  const markNotificationAsRead = (notificationId) => {
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
+  const addComment = async (postId, commentText) => {
+    try {
+      await axios.post(`/social/posts/${postId}/comments`, { content: commentText });
+      await fetchSocialData();
+    } catch (err) { console.error(err); }
   };
 
-  const markAllNotificationsAsRead = () => {
-    setNotifications(prev =>
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  // ── Study Groups ───────────────────────────────────────────────────────
+  const joinStudyGroup = async (groupId) => {
+    await axios.post(`/social/study-groups/${groupId}/join`);
+    await fetchSocialData();
+  };
+  const leaveStudyGroup = async (groupId) => {
+    await axios.post(`/social/study-groups/${groupId}/leave`);
+    await fetchSocialData();
+  };
+  const createStudyGroup = async (groupData) => {
+    await axios.post('/social/study-groups', groupData);
+    await fetchSocialData();
   };
 
-  const clearNotifications = () => {
-    setNotifications([]);
+  // ── Connections ────────────────────────────────────────────────────────
+  const sendConnectionRequest = async (person) => {
+    await axios.post(`/social/connections/${person.id}`);
+    await fetchNotifications(); // refresh so we see local update quickly
+  };
+  const acceptConnection = async (requestId) => {
+    await axios.post(`/social/connections/request/${requestId}/accept`);
+    await fetchSocialData();
+  };
+  const declineConnection = async (requestId) => {
+    await axios.post(`/social/connections/request/${requestId}/decline`);
+    await fetchSocialData();
   };
 
-  // Study group functions
-  const joinStudyGroup = (groupId) => {
-    setStudyGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, members: group.members + 1 }
-          : group
-      )
-    );
-
-    // Add notification
-    const group = studyGroups.find(g => g.id === groupId);
-    if (group) {
-      addNotification({
-        type: 'study_group',
-        content: `You joined ${group.name}`,
-        link: '/study-groups'
-      });
-    }
+  // ── Notifications ──────────────────────────────────────────────────────
+  const markNotificationAsRead = async (notifId) => {
+    try {
+      await axios.post(`/notifications/${notifId}/read`);
+      setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, read: true } : n));
+    } catch (err) { console.error(err); }
   };
 
-  const leaveStudyGroup = (groupId) => {
-    setStudyGroups(prev =>
-      prev.map(group =>
-        group.id === groupId
-          ? { ...group, members: Math.max(0, group.members - 1) }
-          : group
-      )
-    );
+  const markAllNotificationsAsRead = async () => {
+    try {
+      await axios.post('/notifications/read-all');
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) { console.error(err); }
   };
 
-  const createStudyGroup = (groupData) => {
-    const newGroup = {
-      id: Date.now(),
-      ...groupData,
-      members: 1,
-      messages: 0,
-      createdBy: user.name,
-      upcomingSession: groupData.schedule || 'TBD'
-    };
-    setStudyGroups(prev => [newGroup, ...prev]);
-
-    addNotification({
-      type: 'study_group',
-      content: `You created ${groupData.name}`,
-      link: `/study-groups/${newGroup.id}`
-    });
-
-    return newGroup;
-  };
-
-  // Get unread notifications count
-  const getUnreadNotificationsCount = () => {
-    return notifications.filter(n => !n.read).length;
-  };
+  const clearNotifications = () => setNotifications([]);
+  const getUnreadNotificationsCount = () => notifications.filter(n => !n.read).length;
 
   const value = {
-    posts,
-    notifications,
-    studyGroups,
-    loading,
-    createPost,
-    likePost,
-    addComment,
-    joinStudyGroup,
-    leaveStudyGroup,
-    createStudyGroup,
-    markNotificationAsRead,
-    markAllNotificationsAsRead,
-    clearNotifications,
-    getUnreadNotificationsCount
+    posts, studyGroups, loading,
+    fetchSocialData,
+    createPost, likePost, addComment,
+    joinStudyGroup, leaveStudyGroup, createStudyGroup,
+    allUsers, connections, pendingRequests,
+    sendConnectionRequest, acceptConnection, declineConnection,
+    notifications, fetchNotifications,
+    markNotificationAsRead, markAllNotificationsAsRead,
+    clearNotifications, getUnreadNotificationsCount,
   };
 
-  return (
-    <SocialContext.Provider value={value}>
-      {children}
-    </SocialContext.Provider>
-  );
+  return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
 };

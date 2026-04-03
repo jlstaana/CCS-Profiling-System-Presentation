@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import styles from '../../styles/Dashboard.module.css';
@@ -6,12 +6,7 @@ import styles from '../../styles/Dashboard.module.css';
 const FacultyDashboard = () => {
   const { user } = useAuth();
 
-  const stats = [
-    { label: 'Courses Teaching', value: '4', icon: '📚', color: '#4e73df' },
-    { label: 'Total Students', value: '128', icon: '👥', color: '#1cc88a' },
-    { label: 'Pending Tasks', value: '12', icon: '📋', color: '#36b9cc' },
-    { label: 'Materials Uploaded', value: '45', icon: '📎', color: '#f6c23e' }
-  ];
+  const [stats, setStats] = useState([]);
 
   const quickActions = [
     { label: 'Add Material', icon: '📎', path: '/faculty-dashboard/instruction', color: '#4e73df' },
@@ -21,18 +16,8 @@ const FacultyDashboard = () => {
     { label: 'Take Attendance', icon: '📊', path: '#', color: '#f6c23e' }
   ];
 
-  const todaySchedule = [
-    { time: '9:00-10:30', course: 'CS 301 - Database Systems', room: 'Room 201', students: 32 },
-    { time: '11:00-12:30', course: 'CS 302 - Web Development', room: 'Lab 105', students: 28 },
-    { time: '2:00-3:30', course: 'CS 303 - Algorithms', room: 'Room 304', students: 35 }
-  ];
-
-  const recentActivity = [
-    { action: 'Uploaded syllabus for CS 301', time: '2 hours ago' },
-    { action: 'Graded 15 assignments', time: 'Yesterday' },
-    { action: 'Posted announcement for CS 302', time: 'Yesterday' },
-    { action: 'Updated office hours', time: '2 days ago' }
-  ];
+  const [todaySchedule, setTodaySchedule] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   return (
     <>
@@ -65,10 +50,6 @@ const FacultyDashboard = () => {
             key={index}
             to={action.path}
             className={styles.actionButton}
-            style={{ 
-              backgroundColor: action.color + '20',
-              color: action.color
-            }}
           >
             <span className={styles.actionIcon}>{action.icon}</span>
             <span>{action.label}</span>

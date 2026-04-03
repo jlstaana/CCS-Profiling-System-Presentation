@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSocial } from '../context/SocialContext';
 
 const MessageList = ({ messages = [], selectedChat, onSelectChat }) => {
   const [showNewModal, setShowNewModal] = useState(false);
@@ -6,35 +7,12 @@ const MessageList = ({ messages = [], selectedChat, onSelectChat }) => {
   const [searchResults, setSearchResults] = useState([]);
   const [showRequests, setShowRequests] = useState(false);
 
-  // Mock friends data
-  const friends = [
-    { id: 101, name: 'Dr. Maria Santos', role: 'faculty', avatar: 'M', status: 'online', department: 'CS' },
-    { id: 102, name: 'John Doe', role: 'student', avatar: 'J', status: 'offline', course: 'CS 301' },
-    { id: 103, name: 'Alice Johnson', role: 'student', avatar: 'A', status: 'online', course: 'CS 302' },
-    { id: 104, name: 'Prof. Juan Dela Cruz', role: 'faculty', avatar: 'J', status: 'away', department: 'IT' }
-  ];
+  const { allUsers, connections, pendingRequests, sendConnectionRequest, acceptConnection, declineConnection } = useSocial();
 
-  // Mock non-friends (people you can send friend requests to)
-  const nonFriends = [
-    { id: 201, name: 'Robert Santos', role: 'student', avatar: 'R', status: 'online', course: 'CS 301', mutualFriends: 3 },
-    { id: 202, name: 'Dr. Emily Davis', role: 'faculty', avatar: 'E', status: 'offline', department: 'CS', mutualFriends: 1 },
-    { id: 203, name: 'Michael Brown', role: 'student', avatar: 'M', status: 'online', course: 'CS 303', mutualFriends: 5 },
-    { id: 204, name: 'Prof. Sarah Wilson', role: 'faculty', avatar: 'S', status: 'away', department: 'IT', mutualFriends: 0 },
-    { id: 205, name: 'Lisa Garcia', role: 'student', avatar: 'L', status: 'online', course: 'CS 302', mutualFriends: 2 }
-  ];
+  const friends = allUsers.filter(u => connections.includes(u.id));
+  const nonFriends = allUsers.filter(u => !connections.includes(u.id));
 
-  // Mock pending friend requests
-  const [pendingRequests, setPendingRequests] = useState([
-    { id: 301, from: 'Prof. Michael Brown', role: 'faculty', avatar: 'M', timestamp: '2 hours ago' },
-    { id: 302, from: 'Lisa Garcia', role: 'student', avatar: 'L', timestamp: '1 day ago' }
-  ]);
-
-  const mockMessages = messages.length > 0 ? messages : [
-    { id: 1, contact: 'Dr. Maria Santos', role: 'faculty', preview: 'Great job on your project proposal...', time: '2h ago', unread: 2, isFriend: true },
-    { id: 2, contact: 'John Doe', role: 'student', preview: 'Can we meet to discuss the assignment?', time: '5h ago', unread: 0, isFriend: true },
-    { id: 3, contact: 'Alice Johnson', role: 'student', preview: 'Thanks for the feedback!', time: '1d ago', unread: 0, isFriend: true },
-    { id: 4, contact: 'Prof. Juan Dela Cruz', role: 'faculty', preview: 'Please submit your report by Friday', time: 'Yesterday', unread: 1, isFriend: true }
-  ];
+  const mockMessages = messages;
 
   const handleSearch = (query) => {
     setNewRecipient(query);
@@ -55,27 +33,17 @@ const MessageList = ({ messages = [], selectedChat, onSelectChat }) => {
   };
 
   const handleSendFriendRequest = (person) => {
-    // In real app, this would call an API
-    alert(`Friend request sent to ${person.name}!`);
-    // Remove from non-friends and add to pending (mock)
-    setPendingRequests([...pendingRequests, {
-      id: Date.now(),
-      from: person.name,
-      role: person.role,
-      avatar: person.avatar,
-      timestamp: 'Just now'
-    }]);
+    sendConnectionRequest(person);
+    alert(`Connection request sent to ${person.name}!`);
   };
 
   const handleAcceptRequest = (requestId) => {
-    // In real app, this would call an API
-    const accepted = pendingRequests.find(r => r.id === requestId);
-    setPendingRequests(pendingRequests.filter(r => r.id !== requestId));
-    alert(`You are now friends with ${accepted.from}!`);
+    acceptConnection(requestId);
+    alert('Request accepted!');
   };
 
   const handleDeclineRequest = (requestId) => {
-    setPendingRequests(pendingRequests.filter(r => r.id !== requestId));
+    declineConnection(requestId);
   };
 
   const handleStartChat = (person) => {
@@ -312,7 +280,7 @@ const MessageList = ({ messages = [], selectedChat, onSelectChat }) => {
                       {request.avatar}
                     </div>
                     <div style={modalStyles.resultDetails}>
-                      <div style={modalStyles.resultName}>{request.from}</div>
+                      <div style={modalStyles.resultName}>{request.fromName}</div>
                       <div style={modalStyles.resultMeta}>
                         {request.role} • {request.timestamp}
                       </div>

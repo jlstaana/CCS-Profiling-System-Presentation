@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
 import styles from '../../styles/Dashboard.module.css';
@@ -6,24 +6,9 @@ import styles from '../../styles/Dashboard.module.css';
 const StudentDashboard = () => {
   const { user } = useAuth();
 
-  const stats = [
-    { label: 'Enrolled Courses', value: '6', icon: '📚', color: '#4e73df' },
-    { label: 'Current GPA', value: '3.75', icon: '⭐', color: '#1cc88a' },
-    { label: 'Completed Credits', value: '78', icon: '✅', color: '#36b9cc' },
-    { label: 'Attendance', value: '95%', icon: '📊', color: '#f6c23e' }
-  ];
-
-  const upcomingClasses = [
-    { time: '9:00 AM', course: 'CS 301 - Database Systems', room: 'Room 201', instructor: 'Dr. Smith' },
-    { time: '11:00 AM', course: 'CS 302 - Web Development', room: 'Lab 105', instructor: 'Prof. Johnson' },
-    { time: '2:00 PM', course: 'CS 303 - Algorithms', room: 'Room 304', instructor: 'Dr. Williams' }
-  ];
-
-  const events = [
-    { title: 'CS Week Hackathon', date: 'Mar 15', time: '9:00 AM', location: 'CS Building' },
-    { title: 'Guest Lecture: AI Ethics', date: 'Mar 18', time: '2:00 PM', location: 'Auditorium' },
-    { title: 'Career Fair', date: 'Mar 20', time: '10:00 AM', location: 'Student Center' }
-  ];
+  const [stats, setStats] = useState([]);
+  const [upcomingClasses, setUpcomingClasses] = useState([]);
+  const [events, setEvents] = useState([]);
 
   return (
     <>

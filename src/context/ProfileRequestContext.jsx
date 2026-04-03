@@ -1,0 +1,87 @@
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import axios from 'axios';
+
+const ProfileRequestContext = createContext(null);
+
+export const useProfileRequests = () => {
+  const context = useContext(ProfileRequestContext);
+  if (!context) {
+    throw new Error('useProfileRequests must be used within a ProfileRequestProvider');
+  }
+  return context;
+};
+
+export const ProfileRequestProvider = ({ children }) => {
+  const [requests, setRequests] = useState([]);
+
+  // Fetch pending requests (usually for admins)
+  const fetchRequests = async () => {
+    try {
+      const res = await axios.get('/admin/profile-requests');
+      // Format the data to match frontend expectations
+      const formatted = res.data.map(req => ({
+        id: req.id,
+        userId: req.user_id,
+        userName: req.user?.name || 'Unknown',
+        currentRole: req.user?.role || 'Unknown',
+        changes: typeof req.changes === 'string' ? JSON.parse(req.changes) : req.changes,
+        status: req.status,
+        date: new Date(req.created_at).toLocaleDateString()
+      }));
+      setRequests(formatted);
+    } catch (err) {
+      console.error("Error fetching requests:", err);
+    }
+  };
+
+  useEffect(() => {
+    // Only attempt to fetch if we have an API token configured in Axios
+    if (axios.defaults.headers.common['Authorization']) {
+      fetchRequests();
+    }
+  }, [axios.defaults.headers.common['Authorization']]);
+
+  // Submit a new request for approval (for students/faculty)
+  const submitRequest = async (userId, userName, currentRole, changes) => {
+    try {
+      await axios.post('/profile/update', {
+        majorChanges: changes
+      });
+      // Admin dashboard will refetch naturally when opened
+    } catch (err) {
+      console.error("Error submitting request:", err);
+    }
+  };
+
+  const approveRequest = async (requestId) => {
+    try {
+      await axios.post(`/admin/profile-requests/${requestId}/approve`);
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err) {
+      console.error("Error approving request:", err);
+    }
+  };
+
+  const rejectRequest = async (requestId) => {
+    try {
+      await axios.post(`/admin/profile-requests/${requestId}/reject`);
+      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } catch (err) {
+      console.error("Error rejecting request:", err);
+    }
+  };
+
+  const value = {
+    requests,
+    fetchRequests,
+    submitRequest,
+    approveRequest,
+    rejectRequest
+  };
+
+  return (
+    <ProfileRequestContext.Provider value={value}>
+      {children}
+    </ProfileRequestContext.Provider>
+  );
+};

@@ -21,12 +21,7 @@ const ConnectionsList = ({ users, connections = [], onConnect }) => {
     }
   };
 
-  const mockUsers = users || [
-    { id: 1, name: 'John Doe', role: 'student', department: 'CS', avatar: 'JD' },
-    { id: 2, name: 'Dr. Maria Santos', role: 'faculty', department: 'CS', avatar: 'MS' },
-    { id: 3, name: 'Prof. Juan Dela Cruz', role: 'faculty', department: 'IT', avatar: 'JC' },
-    { id: 4, name: 'Alice Johnson', role: 'student', department: 'CS', avatar: 'AJ' }
-  ];
+  const mockUsers = users || [];
 
   const styles = {
     container: {

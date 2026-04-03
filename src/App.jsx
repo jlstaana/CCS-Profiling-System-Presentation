@@ -1,7 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocialProvider } from './context/SocialContext';
-import { MessageProvider } from './context/MessageContext'; // This will now work
+import { MessageProvider } from './context/MessageContext'; 
+import { ProfileRequestProvider } from './context/ProfileRequestContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Auth Pages
@@ -26,6 +27,8 @@ import Instruction from './pages/shared/Instruction';
 import Scheduling from './pages/shared/Scheduling';
 import Events from './pages/shared/Events';
 import Search from './pages/shared/Search';
+import Notifications from './pages/shared/Notifications';
+import Violations from './pages/shared/Violations';
 
 // Social Pages
 import SocialFeed from './pages/social/SocialFeed';
@@ -37,8 +40,9 @@ function App() {
     <Router>
       <AuthProvider>
         <SocialProvider>
-          <MessageProvider> {/* This will now work */}
-            <Routes>
+          <MessageProvider>
+            <ProfileRequestProvider>
+              <Routes>
               {/* Public Routes */}
               <Route path="/" element={<StudentLogin />} />
               <Route path="/faculty" element={<FacultyLogin />} />
@@ -56,6 +60,8 @@ function App() {
                 <Route path="/student-dashboard/social" element={<SocialFeed />} />
                 <Route path="/student-dashboard/study-groups" element={<StudyGroups />} />
                 <Route path="/student-dashboard/messages" element={<Messages />} />
+                <Route path="/student-dashboard/notifications" element={<Notifications />} />
+                <Route path="/student-dashboard/violations" element={<Violations />} />
               </Route>
 
               {/* Faculty Routes */}
@@ -70,6 +76,8 @@ function App() {
                 <Route path="/faculty-dashboard/social" element={<SocialFeed />} />
                 <Route path="/faculty-dashboard/study-groups" element={<StudyGroups />} />
                 <Route path="/faculty-dashboard/messages" element={<Messages />} />
+                <Route path="/faculty-dashboard/notifications" element={<Notifications />} />
+                <Route path="/faculty-dashboard/violations" element={<Violations />} />
               </Route>
 
               {/* Admin Routes */}
@@ -84,11 +92,14 @@ function App() {
                 <Route path="/admin-dashboard/social" element={<SocialFeed />} />
                 <Route path="/admin-dashboard/study-groups" element={<StudyGroups />} />
                 <Route path="/admin-dashboard/messages" element={<Messages />} />
+                <Route path="/admin-dashboard/notifications" element={<Notifications />} />
+                <Route path="/admin-dashboard/violations" element={<Violations />} />
               </Route>
 
               {/* Catch all */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+            </ProfileRequestProvider>
           </MessageProvider>
         </SocialProvider>
       </AuthProvider>

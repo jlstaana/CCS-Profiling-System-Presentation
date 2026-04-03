@@ -1,434 +1,271 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+
+const COLORS = {
+  '#4e73df': 'Blue',
+  '#1cc88a': 'Green',
+  '#36b9cc': 'Cyan',
+  '#f6c23e': 'Yellow',
+  '#e74a3b': 'Red',
+};
+
+const timeSlots = ['7:00 AM','8:00 AM','9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM'];
+const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+const BLANK = { course_id: '', day: 'Monday', time_start: '7:00 AM', time_end: '8:00 AM', room: '', color: '#4e73df' };
 
 const Scheduling = () => {
   const { user } = useAuth();
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const canEdit = user?.role === 'admin';
 
-  const timeSlots = [
-    '9:00 AM', '10:00 AM', '11:00 AM', '12:00 PM',
-    '1:00 PM', '2:00 PM', '3:00 PM', '4:00 PM'
-  ];
+  const [schedules, setSchedules] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState(BLANK);
+  const [editId, setEditId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const schedules = {
-    Monday: [
-      { time: '9:00 AM', course: 'CS 301 - Database Systems', room: 'Room 201', instructor: 'Dr. Smith', color: '#4e73df' },
-      { time: '11:00 AM', course: 'CS 302 - Web Development', room: 'Lab 105', instructor: 'Prof. Johnson', color: '#1cc88a' },
-      { time: '2:00 PM', course: 'CS 303 - Algorithms', room: 'Room 304', instructor: 'Dr. Williams', color: '#36b9cc' }
-    ],
-    Tuesday: [
-      { time: '10:00 AM', course: 'CS 304 - Software Engineering', room: 'Room 201', instructor: 'Prof. Brown', color: '#f6c23e' },
-      { time: '1:00 PM', course: 'CS 305 - Computer Networks', room: 'Lab 105', instructor: 'Dr. Davis', color: '#e74a3b' }
-    ],
-    Wednesday: [
-      { time: '9:00 AM', course: 'CS 301 - Database Systems', room: 'Room 201', instructor: 'Dr. Smith', color: '#4e73df' },
-      { time: '2:00 PM', course: 'CS 303 - Algorithms', room: 'Room 304', instructor: 'Dr. Williams', color: '#36b9cc' }
-    ],
-    Thursday: [
-      { time: '10:00 AM', course: 'CS 304 - Software Engineering', room: 'Room 201', instructor: 'Prof. Brown', color: '#f6c23e' },
-      { time: '3:00 PM', course: 'CS 306 - AI Fundamentals', room: 'Lab 105', instructor: 'Dr. Wilson', color: '#1cc88a' }
-    ],
-    Friday: [
-      { time: '9:00 AM', course: 'CS 301 - Database Systems', room: 'Room 201', instructor: 'Dr. Smith', color: '#4e73df' },
-      { time: '11:00 AM', course: 'CS 302 - Web Development', room: 'Lab 105', instructor: 'Prof. Johnson', color: '#1cc88a' }
-    ]
+  // Course creation (admin only)
+  const [showCourseModal, setShowCourseModal] = useState(false);
+  const [courseForm, setCourseForm] = useState({ code: '', title: '' });
+  const [courseError, setCourseError] = useState('');
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [schedRes, courseRes] = await Promise.all([
+        axios.get('/schedules'),
+        axios.get('/courses'),
+      ]);
+      setSchedules(schedRes.data);
+      setCourses(courseRes.data);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  const getScheduleForDayAndTime = (day, time) => {
-    return schedules[day]?.find(s => s.time === time);
+  useEffect(() => { fetchData(); }, []);
+
+  const getSlot = (day, time) => schedules.find(s => s.day === day && s.time_start === time);
+  const set = f => e => setForm(p => ({ ...p, [f]: e.target.value }));
+
+  const openNew = (day, time) => {
+    if (!canEdit) return;
+    setEditId(null);
+    setForm({ ...BLANK, day, time_start: time });
+    setError('');
+    setShowModal(true);
   };
 
-  const handleTimeSlotClick = (day, time) => {
-    if (user?.role !== 'student') {
-      setSelectedDay(day);
-      setSelectedTime(time);
-      setShowScheduleModal(true);
-    }
+  const openEdit = (s) => {
+    if (!canEdit) return;
+    setEditId(s.id);
+    setForm({ course_id: s.course_id, day: s.day, time_start: s.time_start, time_end: s.time_end, room: s.room, color: s.color || '#4e73df' });
+    setError('');
+    setShowModal(true);
   };
 
-  const ScheduleModal = ({ day, time, onClose }) => {
-    const existingSchedule = getScheduleForDayAndTime(day, time);
+  const handleSave = async () => {
+    if (!form.course_id) { setError('Please select a course.'); return; }
+    if (!form.room.trim()) { setError('Room is required.'); return; }
+    setSaving(true);
+    setError('');
+    try {
+      if (editId) {
+        // update via delete + recreate (simple approach)
+        await axios.delete(`/schedules/${editId}`);
+      }
+      await axios.post(`/courses/${form.course_id}/schedules`, {
+        day: form.day, time_start: form.time_start, time_end: form.time_end, room: form.room,
+      });
+      setShowModal(false);
+      fetchData();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Failed to save schedule.');
+    } finally { setSaving(false); }
+  };
 
-    return (
-      <div style={styles.modalOverlay}>
-        <div style={styles.modal}>
-          <div style={styles.modalHeader}>
-            <h3>{existingSchedule ? 'Edit Schedule' : 'Add New Schedule'}</h3>
-            <button onClick={onClose} style={styles.closeButton}>×</button>
-          </div>
-          <div style={styles.modalBody}>
-            <div style={styles.modalInfo}>
-              <p><strong>Day:</strong> {day}</p>
-              <p><strong>Time:</strong> {time}</p>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Course</label>
-              <select style={styles.select} defaultValue={existingSchedule?.course || ''}>
-                <option value="">Select Course</option>
-                <option value="CS 301">CS 301 - Database Systems</option>
-                <option value="CS 302">CS 302 - Web Development</option>
-                <option value="CS 303">CS 303 - Algorithms</option>
-                <option value="CS 304">CS 304 - Software Engineering</option>
-                <option value="CS 305">CS 305 - Computer Networks</option>
-                <option value="CS 306">CS 306 - AI Fundamentals</option>
-              </select>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Room</label>
-              <input 
-                type="text" 
-                style={styles.input} 
-                placeholder="Enter room number"
-                defaultValue={existingSchedule?.room || ''}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Instructor</label>
-              <input 
-                type="text" 
-                style={styles.input} 
-                placeholder="Enter instructor name"
-                defaultValue={existingSchedule?.instructor || ''}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Color Code</label>
-              <select style={styles.select} defaultValue={existingSchedule?.color || '#4e73df'}>
-                <option value="#4e73df">Blue</option>
-                <option value="#1cc88a">Green</option>
-                <option value="#36b9cc">Cyan</option>
-                <option value="#f6c23e">Yellow</option>
-                <option value="#e74a3b">Red</option>
-              </select>
-            </div>
-          </div>
-          <div style={styles.modalFooter}>
-            {existingSchedule && (
-              <button style={styles.deleteButton}>Delete</button>
-            )}
-            <button onClick={onClose} style={styles.cancelButton}>Cancel</button>
-            <button style={styles.saveButton}>
-              {existingSchedule ? 'Update Schedule' : 'Add Schedule'}
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  const handleDelete = async () => {
+    if (!editId) return;
+    if (!window.confirm('Delete this schedule?')) return;
+    try {
+      await axios.delete(`/schedules/${editId}`);
+      setShowModal(false);
+      fetchData();
+    } catch (e) { setError('Failed to delete.'); }
+  };
+
+  const handleCreateCourse = async () => {
+    if (!courseForm.code.trim() || !courseForm.title.trim()) { setCourseError('Code and title are required.'); return; }
+    try {
+      await axios.post('/courses', courseForm);
+      setCourseForm({ code: '', title: '' });
+      setShowCourseModal(false);
+      fetchData();
+    } catch (e) { setCourseError(e.response?.data?.message || 'Failed to create course.'); }
   };
 
   return (
     <div>
-      <div style={styles.header}>
-        <h1 style={styles.pageTitle}>Class Scheduling</h1>
-        {user?.role !== 'student' && (
-          <button 
-            style={styles.addButton}
-            onClick={() => {
-              setSelectedDay('Monday');
-              setSelectedTime('9:00 AM');
-              setShowScheduleModal(true);
-            }}
-          >
-            + Create Schedule
-          </button>
+      <div style={S.header}>
+        <h1 style={S.pageTitle}>Class Scheduling</h1>
+        {canEdit && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button style={S.btn2} onClick={() => { setCourseError(''); setShowCourseModal(true); }}>+ New Course</button>
+            <button style={S.btn} onClick={() => openNew('Monday', '7:00 AM')}>+ Add Schedule</button>
+          </div>
         )}
       </div>
 
-      <div style={styles.legend}>
-        <div style={styles.legendItem}>
-          <div style={{...styles.colorDot, backgroundColor: '#4e73df'}}></div>
-          <span>Database Systems</span>
-        </div>
-        <div style={styles.legendItem}>
-          <div style={{...styles.colorDot, backgroundColor: '#1cc88a'}}></div>
-          <span>Web Development</span>
-        </div>
-        <div style={styles.legendItem}>
-          <div style={{...styles.colorDot, backgroundColor: '#36b9cc'}}></div>
-          <span>Algorithms</span>
-        </div>
-        <div style={styles.legendItem}>
-          <div style={{...styles.colorDot, backgroundColor: '#f6c23e'}}></div>
-          <span>Software Engineering</span>
-        </div>
-        <div style={styles.legendItem}>
-          <div style={{...styles.colorDot, backgroundColor: '#e74a3b'}}></div>
-          <span>Other Courses</span>
-        </div>
-      </div>
-
-      <div style={styles.scheduleContainer}>
-        <div style={styles.timesColumn}>
-          <div style={styles.cornerCell}></div>
-          {timeSlots.map(time => (
-            <div key={time} style={styles.timeCell}>{time}</div>
+      {loading ? (
+        <div style={S.empty}>Loading schedule…</div>
+      ) : (
+        <div style={S.wrapper}>
+          <div style={S.timesCol}>
+            <div style={S.corner} />
+            {timeSlots.map(t => <div key={t} style={S.timeCell}>{t}</div>)}
+          </div>
+          {days.map(day => (
+            <div key={day} style={S.dayCol}>
+              <div style={S.dayHeader}>{day}</div>
+              {timeSlots.map(time => {
+                const slot = getSlot(day, time);
+                const course = slot ? courses.find(c => c.id === slot.course_id) : null;
+                return (
+                  <div
+                    key={`${day}-${time}`}
+                    style={{ ...S.slotCell, backgroundColor: slot ? (slot.color || '#4e73df') : 'transparent', cursor: canEdit ? 'pointer' : 'default' }}
+                    onClick={() => slot ? openEdit(slot) : openNew(day, time)}
+                  >
+                    {slot && (
+                      <div style={S.slotContent}>
+                        <div style={S.slotCourse}>{course?.code || 'Course'}</div>
+                        <div style={S.slotRoom}>{slot.room}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           ))}
         </div>
+      )}
 
-        {days.map(day => (
-          <div key={day} style={styles.dayColumn}>
-            <div style={styles.dayHeader}>{day}</div>
-            {timeSlots.map(time => {
-              const schedule = getScheduleForDayAndTime(day, time);
-              return (
-                <div
-                  key={`${day}-${time}`}
-                  style={{
-                    ...styles.slotCell,
-                    backgroundColor: schedule ? schedule.color : 'transparent',
-                    color: schedule ? 'white' : 'inherit',
-                    cursor: user?.role !== 'student' ? 'pointer' : 'default'
-                  }}
-                  onClick={() => handleTimeSlotClick(day, time)}
-                >
-                  {schedule && (
-                    <div style={styles.scheduleContent}>
-                      <div style={styles.scheduleCourse}>{schedule.course}</div>
-                      <div style={styles.scheduleRoom}>{schedule.room}</div>
-                    </div>
-                  )}
+      {/* Schedule Modal */}
+      {showModal && (
+        <div style={S.overlay}>
+          <div style={S.modal}>
+            <div style={S.modalHead}>
+              <h3 style={{ margin: 0 }}>{editId ? 'Edit Schedule' : 'Add Schedule'}</h3>
+              <button onClick={() => setShowModal(false)} style={S.close}>×</button>
+            </div>
+            <div style={S.modalBody}>
+              {error && <div style={S.errBox}>{error}</div>}
+              <div style={S.fg}>
+                <label style={S.label}>Course *</label>
+                <select style={S.sel} value={form.course_id} onChange={set('course_id')}>
+                  <option value="">Select course…</option>
+                  {courses.map(c => <option key={c.id} value={c.id}>{c.code} — {c.title}</option>)}
+                </select>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={S.fg}>
+                  <label style={S.label}>Day</label>
+                  <select style={S.sel} value={form.day} onChange={set('day')}>
+                    {days.map(d => <option key={d}>{d}</option>)}
+                  </select>
                 </div>
-              );
-            })}
+                <div style={S.fg}>
+                  <label style={S.label}>Room *</label>
+                  <input style={S.inp} value={form.room} onChange={set('room')} placeholder="e.g. Room 301" />
+                </div>
+                <div style={S.fg}>
+                  <label style={S.label}>Start Time</label>
+                  <select style={S.sel} value={form.time_start} onChange={set('time_start')}>
+                    {timeSlots.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div style={S.fg}>
+                  <label style={S.label}>End Time</label>
+                  <select style={S.sel} value={form.time_end} onChange={set('time_end')}>
+                    {timeSlots.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style={S.modalFoot}>
+              {editId && <button onClick={handleDelete} style={S.delBtn}>🗑 Delete</button>}
+              <button onClick={() => setShowModal(false)} style={S.cancelBtn}>Cancel</button>
+              <button onClick={handleSave} style={S.saveBtn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
 
-      {showScheduleModal && (
-        <ScheduleModal
-          day={selectedDay}
-          time={selectedTime}
-          onClose={() => setShowScheduleModal(false)}
-        />
+      {/* Course Creation Modal */}
+      {showCourseModal && (
+        <div style={S.overlay}>
+          <div style={{ ...S.modal, maxWidth: 420 }}>
+            <div style={S.modalHead}>
+              <h3 style={{ margin: 0 }}>Create Course</h3>
+              <button onClick={() => setShowCourseModal(false)} style={S.close}>×</button>
+            </div>
+            <div style={S.modalBody}>
+              {courseError && <div style={S.errBox}>{courseError}</div>}
+              <div style={S.fg}>
+                <label style={S.label}>Course Code *</label>
+                <input style={S.inp} value={courseForm.code} onChange={e => setCourseForm(p => ({ ...p, code: e.target.value }))} placeholder="e.g. CS 301" />
+              </div>
+              <div style={S.fg}>
+                <label style={S.label}>Course Title *</label>
+                <input style={S.inp} value={courseForm.title} onChange={e => setCourseForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Database Systems" />
+              </div>
+            </div>
+            <div style={S.modalFoot}>
+              <button onClick={() => setShowCourseModal(false)} style={S.cancelBtn}>Cancel</button>
+              <button onClick={handleCreateCourse} style={S.saveBtn}>Create Course</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
 };
 
-const styles = {
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '24px'
-  },
-  pageTitle: {
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#1f2f70'
-  },
-  addButton: {
-    padding: '10px 20px',
-    backgroundColor: '#1cc88a',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '14px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    ':hover': {
-      backgroundColor: '#169b6b',
-      transform: 'translateY(-2px)'
-    }
-  },
-  legend: {
-    display: 'flex',
-    gap: '20px',
-    marginBottom: '20px',
-    padding: '16px',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    flexWrap: 'wrap'
-  },
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '13px'
-  },
-  colorDot: {
-    width: '12px',
-    height: '12px',
-    borderRadius: '50%'
-  },
-  scheduleContainer: {
-    display: 'flex',
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    overflow: 'hidden',
-    boxShadow: '0 4px 15px rgba(0,0,0,0.05)'
-  },
-  timesColumn: {
-    width: '100px',
-    borderRight: '1px solid #e3e6f0'
-  },
-  cornerCell: {
-    height: '50px',
-    borderBottom: '1px solid #e3e6f0',
-    backgroundColor: '#f8f9fc'
-  },
-  timeCell: {
-    height: '80px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottom: '1px solid #e3e6f0',
-    fontSize: '13px',
-    fontWeight: '500',
-    color: '#5a5c69'
-  },
-  dayColumn: {
-    flex: 1,
-    borderRight: '1px solid #e3e6f0',
-    ':last-child': {
-      borderRight: 'none'
-    }
-  },
-  dayHeader: {
-    height: '50px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderBottom: '1px solid #e3e6f0',
-    backgroundColor: '#f8f9fc',
-    fontWeight: '600',
-    color: '#1f2f70'
-  },
-  slotCell: {
-    height: '80px',
-    borderBottom: '1px solid #e3e6f0',
-    padding: '8px',
-    transition: 'all 0.3s ease',
-    ':hover': {
-      opacity: 0.9
-    }
-  },
-  scheduleContent: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center'
-  },
-  scheduleCourse: {
-    fontSize: '12px',
-    fontWeight: '600',
-    marginBottom: '4px'
-  },
-  scheduleRoom: {
-    fontSize: '11px',
-    opacity: 0.9
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-  modal: {
-    backgroundColor: 'white',
-    borderRadius: '12px',
-    width: '90%',
-    maxWidth: '500px'
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #e3e6f0'
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#858796'
-  },
-  modalBody: {
-    padding: '20px'
-  },
-  modalFooter: {
-    display: 'flex',
-    justifyContent: 'flex-end',
-    gap: '10px',
-    padding: '20px',
-    borderTop: '1px solid #e3e6f0'
-  },
-  modalInfo: {
-    backgroundColor: '#f8f9fc',
-    padding: '12px',
-    borderRadius: '8px',
-    marginBottom: '20px'
-  },
-  formGroup: {
-    marginBottom: '16px'
-  },
-  label: {
-    display: 'block',
-    marginBottom: '8px',
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#5a5c69'
-  },
-  input: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #d1d3e2',
-    borderRadius: '6px',
-    fontSize: '14px'
-  },
-  select: {
-    width: '100%',
-    padding: '10px',
-    border: '1px solid #d1d3e2',
-    borderRadius: '6px',
-    fontSize: '14px'
-  },
-  cancelButton: {
-    padding: '10px 20px',
-    backgroundColor: '#f8f9fc',
-    color: '#5a5c69',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer'
-  },
-  saveButton: {
-    padding: '10px 20px',
-    backgroundColor: '#1cc88a',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    ':hover': {
-      backgroundColor: '#169b6b'
-    }
-  },
-  deleteButton: {
-    padding: '10px 20px',
-    backgroundColor: '#e74a3b',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    fontSize: '14px',
-    cursor: 'pointer',
-    marginRight: 'auto',
-    ':hover': {
-      backgroundColor: '#c73a2b'
-    }
-  }
+const S = {
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  pageTitle: { fontSize: 24, fontWeight: 600, color: '#1f2f70', margin: 0 },
+  btn: { padding: '9px 18px', backgroundColor: '#1cc88a', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  btn2: { padding: '9px 18px', backgroundColor: '#1f2f70', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  empty: { padding: 60, textAlign: 'center', color: '#858796' },
+  wrapper: { display: 'flex', backgroundColor: 'white', borderRadius: 12, overflow: 'auto', boxShadow: '0 4px 15px rgba(0,0,0,0.05)' },
+  timesCol: { width: 90, flexShrink: 0, borderRight: '1px solid #e3e6f0' },
+  corner: { height: 50, borderBottom: '1px solid #e3e6f0', backgroundColor: '#f8f9fc' },
+  timeCell: { height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e3e6f0', fontSize: 12, fontWeight: 500, color: '#5a5c69' },
+  dayCol: { flex: 1, borderRight: '1px solid #e3e6f0', minWidth: 110 },
+  dayHeader: { height: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #e3e6f0', backgroundColor: '#f8f9fc', fontWeight: 600, color: '#1f2f70', fontSize: 13 },
+  slotCell: { height: 72, borderBottom: '1px solid #e3e6f0', padding: 6, transition: 'opacity .2s' },
+  slotContent: { height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+  slotCourse: { fontSize: 11, fontWeight: 700, color: 'white', marginBottom: 2 },
+  slotRoom: { fontSize: 10, color: 'rgba(255,255,255,0.85)' },
+  overlay: { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  modal: { backgroundColor: 'white', borderRadius: 14, width: '90%', maxWidth: 520, maxHeight: '90vh', overflow: 'auto' },
+  modalHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 24px', borderBottom: '1px solid #e3e6f0' },
+  close: { background: 'none', border: 'none', fontSize: 26, cursor: 'pointer', color: '#858796', lineHeight: 1 },
+  modalBody: { padding: '18px 24px' },
+  modalFoot: { display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 24px', borderTop: '1px solid #e3e6f0' },
+  fg: { marginBottom: 14 },
+  label: { display: 'block', marginBottom: 6, fontSize: 13, fontWeight: 500, color: '#5a5c69' },
+  inp: { width: '100%', padding: '9px 12px', border: '1px solid #d1d3e2', borderRadius: 7, fontSize: 14, boxSizing: 'border-box' },
+  sel: { width: '100%', padding: '9px 12px', border: '1px solid #d1d3e2', borderRadius: 7, fontSize: 14 },
+  errBox: { backgroundColor: '#fdecea', border: '1px solid #f5c6cb', color: '#842029', padding: '9px 12px', borderRadius: 7, marginBottom: 12, fontSize: 13 },
+  saveBtn: { padding: '9px 20px', backgroundColor: '#1cc88a', color: 'white', border: 'none', borderRadius: 7, fontSize: 14, fontWeight: 600, cursor: 'pointer' },
+  cancelBtn: { padding: '9px 18px', backgroundColor: '#f8f9fc', color: '#5a5c69', border: '1px solid #d1d3e2', borderRadius: 7, fontSize: 14, cursor: 'pointer' },
+  delBtn: { padding: '9px 16px', backgroundColor: '#e74a3b', color: 'white', border: 'none', borderRadius: 7, fontSize: 14, cursor: 'pointer', marginRight: 'auto' },
 };
 
 export default Scheduling;
